@@ -77,8 +77,22 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    'smart_market': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'smart_market',
+        'USER': 'sqluser',
+        'PASSWORD': 'password',
+        'HOST': 'localhost',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'charset': 'utf8mb4',
+        },
     }
 }
+
+DATABASE_ROUTERS = ['marche_smart.routers.SmartMarketRouter']
 
 
 # Password validation
@@ -116,3 +130,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Email backend for development (console)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'filliebene@gmail.com'  # Replace with your Gmail address
+EMAIL_HOST_PASSWORD = 'Filli@1234'   # Replace with your Gmail App Password
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = 'filliebene@gmail.com'  # Or any sender email you want

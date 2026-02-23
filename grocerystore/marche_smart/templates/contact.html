@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section style="background: linear-gradient(135deg, #2b8a3e 0%, #37b24d 100%); color: white; padding: 2rem 1rem; text-align: center;">
+  <div style="max-width: 1100px; margin: 0 auto;">
+    <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Contact Us</h1>
+    <p style="font-size: 1.1rem; opacity: 0.95;">We'd love to hear from you!</p>
+  </div>
+</section>
+
+<section style="padding: 3rem 1rem; max-width: 600px; margin: 0 auto;">
+  {% if success %}
+    <div style="background: #d4edda; color: #155724; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #c3e6cb;">
+      <strong>Success!</strong> Your message has been sent. We'll get back to you soon.
+    </div>
+  {% endif %}
+
+  {% if error %}
+    <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #f5c6cb;">
+      <strong>Error!</strong> {{ error }}
+    </div>
+  {% endif %}
+
+  <form method="POST" style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08);">
+    {% csrf_token %}
+    
+    <div style="margin-bottom: 1.5rem;">
+      <label for="username" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Your Name</label>
+      <input 
+        type="text" 
+        id="username" 
+        name="username" 
+        required
+        style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s;"
+        placeholder="Enter your name"
+        onfocus="this.style.borderColor='#2b8a3e'"
+        onblur="this.style.borderColor='#ddd'"
+      >
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+      <label for="email" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Email Address</label>
+      <input 
+        type="email" 
+        id="email" 
+        name="email" 
+        required
+        style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s;"
+        placeholder="your.email@example.com"
+        onfocus="this.style.borderColor='#2b8a3e'"
+        onblur="this.style.borderColor='#ddd'"
+      >
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+      <label for="question" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #333;">Your Question/Message</label>
+      <textarea 
+        id="question" 
+        name="question" 
+        rows="6"
+        required
+        style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s; resize: vertical;"
+        placeholder="How can we help you?"
+        onfocus="this.style.borderColor='#2b8a3e'"
+        onblur="this.style.borderColor='#ddd'"
+      ></textarea>
+    </div>
+
+    <button 
+      type="submit" 
+      style="width: 100%; background: linear-gradient(135deg, #2b8a3e 0%, #37b24d 100%); color: white; padding: 0.9rem; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;"
+      onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(43,138,62,0.3)'"
+      onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
+    >
+      Send Message
+    </button>
+  </form>
+
+  <div style="margin-top: 2rem; text-align: center; color: #666;">
+    <p>Or reach us directly at:</p>
+    <p style="margin-top: 0.5rem;">
+      <strong>Email:</strong> <a href="mailto:info@marchesmart.com" style="color: #2b8a3e; text-decoration: none;">info@marchesmart.com</a><br>
+      <strong>Phone:</strong> <a href="tel:+15551234567" style="color: #2b8a3e; text-decoration: none;">+1 (555) 123-4567</a><br>
+      <strong>WhatsApp:</strong> <a href="https://wa.me/15551234567" style="color: #2b8a3e; text-decoration: none;">Chat with us</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

@@ -29,7 +29,7 @@
           <select id="categorySelect" name="category">
             <option value="">All Categories</option>
             {% for category in categories %}
-              <option value="{{ category.id }}" {% if selected_category|stringformat:"s" == category.id|stringformat:"s" %}selected{% endif %}>
+              <option value="{{ category.name }}" {% if selected_category == category.name %}selected{% endif %}>
                 {{ category.name }}
               </option>
             {% endfor %}
@@ -45,8 +45,8 @@
               id="minPrice" 
               name="min_price" 
               placeholder="Min" 
-              step="0.01"
-              value="{{ min_price }}"
+              step="200"
+              value="{{  min_price }}"
             >
             <span class="separator">-</span>
             <input 
@@ -54,17 +54,17 @@
               id="maxPrice" 
               name="max_price" 
               placeholder="Max" 
-              step="0.01"
+              step="200"
               value="{{ max_price }}"
             >
           </div>
-          <small>Max available: ${{ max_price_available|floatformat:2 }}</small>
+          <small>Max available: RS{{ max_price_available|floatformat:2 }}</small>
         </div>
 
         <!-- Apply Filters Button -->
         <div class="filter-group">
           <button type="submit" class="btn-apply-filters">Apply Filters</button>
-          <a href="{% url 'marche_smart:shop' %}" class="btn-clear-filters">Clear All</a>
+          <a href="{% url 'smart_market:shop' %}" class="btn-clear-filters">Clear All</a>
         </div>
       </form>
     </aside>
@@ -100,7 +100,7 @@
                 <h3 class="product-name">{{ product.name }}</h3>
                 
                 {% if product.category %}
-                  <p class="product-category">{{ product.category.name }}</p>
+                  <p class="product-category">{{ product.category }}</p>
                 {% endif %}
                 
                 {% if product.description %}
@@ -109,16 +109,17 @@
                 
                 <div class="product-footer">
                   <span class="product-price">${{ product.price|floatformat:2 }}</span>
-                  {% if product.in_stock %}
-                    <span class="badge in-stock">In Stock</span>
+                  {% if product.stock_quantity > 0 %}
+                    <span class="badge in-stock">In Stock ({{ product.stock_quantity }})</span>
                   {% else %}
                     <span class="badge out-of-stock">Out of Stock</span>
                   {% endif %}
                 </div>
-                
-                <button class="btn-add-to-cart" {% if not product.in_stock %}disabled{% endif %}>
-                  Add to Cart
-                </button>
+                <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin-top:0.5rem;">
+                  {% csrf_token %}
+                  <input type="hidden" name="quantity" value="1">
+                  <button type="submit" class="btn-add-to-cart" {% if product.stock_quantity <= 0 %}disabled{% endif %}>Add to Cart</button>
+                </form>
               </div>
             </div>
           {% endfor %}
@@ -127,7 +128,7 @@
         <div class="no-products">
           <h2>No products found</h2>
           <p>Try adjusting your filters or search terms.</p>
-          <a href="{% url 'marche_smart:shop' %}" class="btn-reset">View All Products</a>
+          <a href="{% url 'smart_market:shop' %}" class="btn-reset">View All Products</a>
         </div>
       {% endif %}
     </main>

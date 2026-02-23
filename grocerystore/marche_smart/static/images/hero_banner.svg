@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="100%" height="200">
+  <defs>
+    <linearGradient id="heroGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2b8a3e"/>
+      <stop offset="100%" stop-color="#37b24d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="400" fill="url(#heroGradient)"/>
+  <ellipse cx="900" cy="350" rx="220" ry="60" fill="#fff" opacity="0.12"/>
+  <ellipse cx="300" cy="100" rx="180" ry="50" fill="#fff" opacity="0.10"/>
+  <text x="50%" y="44%" text-anchor="middle" fill="#fff" font-size="54" font-family="Aster, Segoe UI, Arial, sans-serif" font-weight="bold" dy=".3em">Retail shop next door</text>
+  <text x="50%" y="58%" text-anchor="middle" fill="#fff" font-size="32" font-family="Aster, Segoe UI, Arial, sans-serif" opacity="0.95">vite, sécurisé, personnalisé</text>
+  <text x="50%" y="68%" text-anchor="middle" fill="#fff" font-size="28" font-family="Aster, Segoe UI, Arial, sans-serif" opacity="0.92">à tester sans limite.</text>
+</svg>

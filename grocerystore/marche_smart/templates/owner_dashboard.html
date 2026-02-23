@@ -2,16 +2,36 @@
 {% block content %}
 <section class="dashboard owner-dashboard">
   <h2>Owner Dashboard</h2>
+  <div style="text-align:right; margin-bottom:1rem;">
+    <a href="{% url 'smart_market:export_dashboard_excel' %}" class="btn primary" style="padding:0.6rem 1.2rem; font-size:1rem;">Export to Excel</a>
+  </div>
   <div class="dashboard-cards">
     <div class="card">
       <h3>Total Sales</h3>
       <p>${{ sales_total }}</p>
     </div>
     <div class="card">
-      <h3>Number of Purchases</h3>
+      <h3>Customers</h3>
+      <p>{{ customer_count }}</p>
+    </div>
+    <div class="card">
+      <h3>Registrations</h3>
+      <p>{{ registrations }}</p>
+    </div>
+    <div class="card">
+      <h3>Orders</h3>
       <p>{{ orders_count }}</p>
     </div>
+    <div class="card">
+      <h3>Delivery Tracking</h3>
+      <p>{{ delivery_tracking }}</p>
+    </div>
+    <div class="card">
+      <h3>Payment Transactions</h3>
+      <p>{{ payment_transactions }}</p>
+    </div>
   </div>
+
   <div class="dashboard-section">
     <h3>Top Products</h3>
     <ul>
@@ -21,6 +41,30 @@
         <li>No products found.</li>
       {% endfor %}
     </ul>
+  </div>
+
+  <div class="dashboard-section">
+    <h3>Inventory Management</h3>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left; border-bottom:1px solid #eee;">Product</th>
+          <th style="text-align:left; border-bottom:1px solid #eee;">Price</th>
+          <th style="text-align:left; border-bottom:1px solid #eee;">In Stock</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in inventory %}
+        <tr>
+          <td>{{ product.name }}</td>
+          <td>${{ product.price }}</td>
+          <td>{% if product.in_stock %}Yes{% else %}No{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3">No products in inventory.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </section>
 {% endblock %}

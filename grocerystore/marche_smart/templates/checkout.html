@@ -1,6 +1,47 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Checkout</h2>
-<p>Customer details form (name, address, payment) will be added here in the future.</p>
-<a href="{% url 'cart' %}" class="btn btn-secondary">Back to Cart</a>
+<form id="checkout-form" method="POST">
+	{% csrf_token %}
+	<div class="form-group">
+		<label for="name">Full Name</label>
+		<input type="text" id="name" name="name" class="form-control" required>
+	</div>
+	<div class="form-group">
+		<label for="address">Address</label>
+		<input type="text" id="address" name="address" class="form-control" required>
+	</div>
+	<div class="form-group">
+		<label for="email">Email</label>
+		<input type="email" id="email" name="email" class="form-control" required>
+	</div>
+	<hr>
+	<h4>Payment Details</h4>
+	<!-- Stripe Elements Placeholder -->
+	<div id="card-element" class="form-control"></div>
+	<div id="card-errors" role="alert" style="color:red;"></div>
+	<button type="submit" class="btn btn-primary" style="margin-top:1rem;">Pay Now</button>
+	<a href="{% url 'smart_market:cart' %}" class="btn btn-secondary" style="margin-top:1rem;">Back to Cart</a>
+</form>
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+// Stripe integration (frontend only, backend needed for real payments)
+const stripe = Stripe('pk_test_your_publishable_key'); // Replace with your Stripe publishable key
+const elements = stripe.elements();
+const card = elements.create('card');
+card.mount('#card-element');
+card.on('change', function(event) {
+	const displayError = document.getElementById('card-errors');
+	if (event.error) {
+		displayError.textContent = event.error.message;
+	} else {
+		displayError.textContent = '';
+	}
+});
+document.getElementById('checkout-form').addEventListener('submit', async function(event) {
+	event.preventDefault();
+	// You need to implement payment intent creation in your Django backend
+	alert('Payment processing is not implemented yet.');
+});
+</script>
 {% endblock %}

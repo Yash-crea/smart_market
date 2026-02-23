@@ -1,0 +1,97 @@
+{
+  "name": "Smart Market - Grocery Store",
+  "short_name": "Smart Market",
+  "description": "Your one-stop destination for fresh groceries, delivered with care to your doorstep.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2b8a3e",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en-US",
+  "categories": ["shopping", "food", "business"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDY0IDY0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMiIgZmlsbD0iIzJiOGEzZSIvPgo8cGF0aCBkPSJNMTggMjBoMjh2MTJIMTh6IiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjIgMzJsLTQgMTRoMjhsLTQtMTQiIGZpbGw9IndoaXRlIi8+CjxjaXJjbGUgY3g9IjI2IiBjeT0iNTAiIHI9IjIiIGZpbGw9IndoaXRlIi8+CjxjaXJjbGUgY3g9IjQyIiBjeT0iNTAiIHI9IjIiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDY0IDY0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMiIgZmlsbD0iIzJiOGEzZSIvPgo8cGF0aCBkPSJNMTggMjBoMjh2MTJIMTh6IiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjIgMzJsLTQgMTRoMjhsLTQtMTQiIGZpbGw9IndoaXRlIi8+CjxjaXJjbGUgY3g9IjI2IiBjeT0iNTAiIHI9IjIiIGZpbGw9IndoaXRlIi8+CjxjaXJjbGUgY3g9IjQyIiBjeT0iNTAiIHI9IjIiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQ0IiBoZWlnaHQ9IjE0NCIgdmlld0JveD0iMCAwIDY0IDY0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMiIgZmlsbD0iIzJiOGEzZSIvPgo8cGF0aCBkPSJNMTggMjBoMjh2MTJIMTh6IiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjIgMzJsLTQgMTRoMjhsLTQtMTQiIGZpbGw9IndoaXRlIi8+CjxjaXJjbGUgY3g9IjI2IiBjeT0iNTAiIHI9IjIiIGZpbGw9IndoaXRlIi8+CjxjaXJjbGUgY3g9IjQyIiBjeT0iNTAiIHI9IjIiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=",
+      "sizes": "144x144",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzIiIGZpbGw9IiMyYjhhM2UiLz4KPHBhdGggZD0iTTE4IDIwaDI4djEySDE4eiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTIyIDMybC00IDE0aDI4bC00LTE0IiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSIyNiIgY3k9IjUwIiByPSIyIiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSI0MiIgY3k9IjUwIiByPSIyIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K",
+      "sizes": "72x72",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzIiIGZpbGw9IiMyYjhhM2UiLz4KPHBhdGggZD0iTTE4IDIwaDI4djEySDE4eiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTIyIDMybC00IDE0aDI4bC00LTE0IiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSIyNiIgY3k9IjUwIiByPSIyIiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSI0MiIgY3k9IjUwIiByPSIyIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K",
+      "sizes": "96x96",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzIiIGZpbGw9IiMyYjhhM2UiLz4KPHBhdGggZD0iTTE4IDIwaDI4djEySDE4eiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTIyIDMybC00IDE0aDI4bC00LTE0IiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSIyNiIgY3k9IjUwIiByPSIyIiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSI0MiIgY3k9IjUwIiByPSIyIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K",
+      "sizes": "48x48",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Shop Now",
+      "short_name": "Shop",
+      "description": "Browse our fresh products",
+      "url": "/shop/",
+      "icons": [
+        {
+          "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTcgMThjLTEuMSAwLTEuOTkuOS0xLjk5IDJTNS45IDIyIDcgMjJzMi0uOSAyLTItLjktMi0yLTJ6TTEgMnYyaDJsMy42IDcuNTktMS4zNSAyLjQ1Yy0uMTYuMjgtLjI1LjYxLS4yNS45NiAwIDEuMS45IDIgMiAyaDEydi0ySDcuNDJjLS4xNCAwLS4yNS0uMTEtLjI1LS4yNWwuMDMtLjEyLjktMS42M2g3LjQ1Yy43NSAwIDEuNDEtLjQxIDEuNzUtMS4wM2wzLjU4LTYuNDljLjA4LS4xNC4xMi0uMzEuMTItLjQ4IDAtLjU1LS40NS0xLTEtMUg1LjIxbC0uOTQtMkgxem0xNiAxNmMtMS4xIDAtMS45OS45LTEuOTkgMnMuODkgMiAxLjk5IDIgMi0uOSAyLTItLjktMi0yLTJ6IiBmaWxsPSIjMmI4YTNlIi8+Cjwvc3ZnPgo=",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "My Cart",
+      "short_name": "Cart",
+      "description": "View your shopping cart",
+      "url": "/cart/",
+      "icons": [
+        {
+          "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE5IDdoLTNWNmMwLTIuNzYtMi4yNC01LTUtNXMtNSAyLjI0LTUgNXYxSDRjLTEuMSAwLTEuOTkuOS0xLjk5IDJMMiAxOWMwIDEuMS45IDIgMiAyaDE0YzEuMSAwIDItLjkgMi0yVjljMC0xLjEtLjktMi0yLTJ6TTkgNmMwLTEuNjYgMS4zNC0zIDMtM3MzIDEuMzQgMyAzdjFIOVY2em0wIDljLS44MyAwLTEuNS0uNjctMS41LTEuNVM4LjE3IDEyIDkgMTJzMS41LjY3IDEuNSAxLjUtLjY3IDEuNS0xLjUgMS41em02IDBjLS44MyAwLTEuNS0uNjctMS41LTEuNXMuNjctMS41IDEuNS0xLjUgMS41LjY3IDEuNSAxLjUtLjY3IDEuNS0xLjUgMS41eiIgZmlsbD0iIzJiOGEzZSIvPgo8L3N2Zz4K",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTQwIiBoZWlnaHQ9IjcyMCIgdmlld0JveD0iMCAwIDU0MCA3MjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1NDAiIGhlaWdodD0iNzIwIiBmaWxsPSIjZjhmOWZhIi8+Cjx0ZXh0IHg9IjI3MCIgeT0iMzYwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjMmI4YTNlIiBmb250LXNpemU9IjI0Ij5TbWFydCBNYXJrZXQ8L3RleHQ+Cjx0ZXh0IHg9IjI3MCIgeT0iNDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjY2IiBmb250LXNpemU9IjE2Ij5Zb3VyIGdyb2Nlcnkgc3RvcmU8L3RleHQ+Cjwvc3ZnPgo=",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}

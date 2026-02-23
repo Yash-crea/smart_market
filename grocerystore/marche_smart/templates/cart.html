@@ -32,7 +32,7 @@
                 </td>
                 <td class="price">${{ item.price }}</td>
                 <td class="quantity">
-                  <form method="post" action="{% url 'marche_smart:update_cart' product_id %}" class="quantity-form">
+                  <form method="post" action="{% url 'smart_market:update_cart' product_id %}" class="quantity-form">
                     {% csrf_token %}
                     <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="99">
                     <button type="submit" class="btn-update">Update</button>
@@ -40,7 +40,7 @@
                 </td>
                 <td class="total">${{ item.price|floatformat:2|floatformat:2|add:"0" }}</td>
                 <td class="actions">
-                  <a href="{% url 'marche_smart:remove_from_cart' product_id %}" class="btn-remove">Remove</a>
+                  <a href="{% url 'smart_market:remove_from_cart' product_id %}" class="btn-remove">Remove</a>
                 </td>
               </tr>
             {% endfor %}
@@ -68,8 +68,29 @@
             <span>${{ total }}</span>
           </div>
           
-          <a href="{% url 'marche_smart:checkout' %}" class="btn-checkout">Proceed to Checkout</a>
-          <a href="{% url 'marche_smart:shop' %}" class="btn-continue-shopping">Continue Shopping</a>
+          <!-- Payment Form -->
+          <form class="payment-form" method="post" action="#">
+            <h3 style="margin-top:1.5rem;">Payment Details</h3>
+            <div class="card-options">
+              <label>
+                <input type="radio" name="card_type" value="visa" checked>
+                <img src="{% static 'images/visa.svg' %}" alt="Visa" class="card-icon"> Visa
+              </label>
+              <label>
+                <input type="radio" name="card_type" value="mastercard">
+                <img src="{% static 'images/mastercard.svg' %}" alt="Mastercard" class="card-icon"> Mastercard
+              </label>
+            </div>
+            <div class="form-group">
+              <input type="text" name="card_number" class="input" placeholder="Card Number" maxlength="19" required>
+            </div>
+            <div class="form-row">
+              <input type="text" name="expiry" class="input" placeholder="MM/YY" maxlength="5" required>
+              <input type="text" name="cvv" class="input" placeholder="CVV" maxlength="4" required>
+            </div>
+            <button type="submit" class="btn-checkout" style="margin-top:1rem;">Pay Now</button>
+          </form>
+          <a href="{% url 'smart_market:shop' %}" class="btn-continue-shopping">Continue Shopping</a>
         </div>
 
         <div class="summary-card info">
@@ -86,7 +107,7 @@
       </svg>
       <h2>Your cart is empty</h2>
       <p>Add some products to get started!</p>
-      <a href="{% url 'marche_smart:shop' %}" class="btn-primary">Go to Shop</a>
+      <a href="{% url 'smart_market:shop' %}" class="btn-primary">Go to Shop</a>
     </div>
   {% endif %}
 </section>
@@ -412,6 +433,56 @@
     .quantity-form {
       flex-direction: column;
     }
+  }
+</style>
+<style>
+  .payment-form {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+  }
+  .payment-form h3 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    color: #333;
+  }
+  .card-options {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    align-items: center;
+  }
+  .card-options label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .card-icon {
+    width: 36px;
+    height: 24px;
+    vertical-align: middle;
+    margin-right: 0.3rem;
+    border-radius: 4px;
+    border: 1px solid #eee;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  .form-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .payment-form .input {
+    width: 100%;
+    padding: 0.7rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
   }
 </style>
 {% endblock %}

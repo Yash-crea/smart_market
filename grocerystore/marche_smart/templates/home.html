@@ -1,16 +1,60 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block content %}
-  <section class="hero">
-    <h1>Find fresh groceries near you</h1>
-    <p>Use the search bar above to look for products.</p>
-  </section>
 
-  <section class="shop">
-    <h2>Featured products</h2>
-    <div class="product-grid">
-      <div class="product">Product A</div>
-      <div class="product">Product B</div>
-      <div class="product">Product C</div>
+  <!-- Hero Banner -->
+  <div class="hero-banner" style="position:relative;overflow:hidden;">
+    <img src="{% static 'images/hero_banner.svg' %}" alt="Fresh Groceries Delivered" style="width:100%;max-height:260px;object-fit:cover;display:block;">
+    <div style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+      <!-- Overlay text is in SVG -->
     </div>
-  </section>
+  </div>
+
+  <!-- Home Image below Hero Banner -->
+  <div style="position: relative; width: 100vw; left: 50%; transform: translateX(-50%); margin-bottom: 2rem; min-height: 340px; display: flex; align-items: center; justify-content: center;">
+    
+    <div style="position: relative; z-index: 2; width: 100vw; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1rem;">
+      <h1 style="color: white; text-shadow: 0 2px 16px rgba(0,0,0,0.7); font-size: 2.5rem; text-align: center; max-width: 90vw;">le meilleur e-commerce que vous pouvez trouver</h1>
+      <p style="color: white; text-shadow: 0 2px 8px rgba(0,0,0,0.7); font-size: 1.3rem; text-align: center; max-width: 80vw;">Achetez en un clic.</p>
+      <a href="{% url 'smart_market:shop' %}" style="margin-top: 2rem; background-color: #2b8a3e; color: #fff; padding: 1rem 2.2rem; border-radius: 2rem; font-size: 1.3rem; text-decoration: none; box-shadow: 0 4px 16px rgba(0,0,0,0.12); font-weight: 600; transition: background 0.2s;">Shop Now</a>
+    </div>
+  </div>
+
+
+
+  <!-- Footer -->
+  <footer style="background: linear-gradient(135deg, #2b8a3e 0%, #37b24d 100%); color: white; padding: 2.5rem 1rem; margin-top: 6rem;">
+    <div style="max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+      <div>
+        <h3 style="margin-bottom: 1rem; font-size: 1.3rem;">Smart Market</h3>
+        <p style="opacity: 0.9; line-height: 1.6;">Your one-stop destination for fresh groceries, delivered with care to your doorstep.</p>
+      </div>
+      <div>
+        <h3 style="margin-bottom: 1rem; font-size: 1.3rem;">Quick Links</h3>
+        <ul style="list-style: none; padding: 0;">
+          <li style="margin-bottom: 0.5rem;"><a href="{% url 'smart_market:home' %}" style="color: white; text-decoration: none; opacity: 0.9;">Home</a></li>
+          <li style="margin-bottom: 0.5rem;"><a href="{% url 'smart_market:shop' %}" style="color: white; text-decoration: none; opacity: 0.9;">Shop</a></li>
+          <li style="margin-bottom: 0.5rem;"><a href="{% url 'smart_market:about' %}" style="color: white; text-decoration: none; opacity: 0.9;">About Us</a></li>
+          <li style="margin-bottom: 0.5rem;"><a href="{% url 'smart_market:cart' %}" style="color: white; text-decoration: none; opacity: 0.9;">Cart</a></li>
+          <li style="margin-bottom: 0.5rem;"><a href="#contact" style="color: white; text-decoration: none; opacity: 0.9;">Contact Us</a></li>
+        </ul>
+      </div>
+      <div id="contact">
+        <h3 style="margin-bottom: 1rem; font-size: 1.3rem;">Contact & Customer Support</h3>
+        <p style="opacity: 0.9; line-height: 1.8; margin-bottom: 0.5rem;">
+          <strong>Email:</strong> <a href="mailto:info@marchesmart.com" style="color: white; text-decoration: underline;">info@marchesmart.com</a><br>
+          <strong>Support:</strong> <a href="mailto:support@marchesmart.com" style="color: white; text-decoration: underline;">support@marchesmart.com</a><br>
+          <strong>Phone:</strong> <a href="tel:+14605100" style="color: white; text-decoration: none;">+1 (555) 123-4567</a><br>
+          <strong>WhatsApp:</strong> <a href="{% url 'smart_market:whatsapp' %}" style="color: white; text-decoration: underline;">Chat with us</a><br>
+          <strong>Address:</strong> 10th floor, Cyber Tower 1,
+Ebene Cyber City
+Shri Atal Bihari Vajpayee Tower,
+Ebene, Mauritius
+        </p>
+      </div>
+    </div>
+    <div style="text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.2);">
+      <p style="opacity: 0.8;">&copy; 2026 Smart Market. All rights reserved. | <a href="#contact" style="color: white; text-decoration: underline;">Need Help? Contact Support</a></p>
+    </div>
+  </footer>
 {% endblock %}

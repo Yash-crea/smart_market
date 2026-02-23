@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section style="padding: 2rem 1rem; max-width: 500px; margin: 0 auto; min-height: 70vh;">
+  <div style="background: #075e54; color: white; padding: 1.2rem; border-radius: 12px 12px 0 0; display: flex; align-items: center; gap: 1rem;">
+    <div style="width: 50px; height: 50px; background: #25d366; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+      💬
+    </div>
+    <div>
+      <h2 style="margin: 0; font-size: 1.2rem;">Smart Market Support</h2>
+      <p style="margin: 0; font-size: 0.85rem; opacity: 0.9;">Online - Typically replies in less than 1 hour</p>
+    </div>
+  </div>
+
+  <div style="background-color: #e5ddd5; padding: 2rem 1rem; min-height: 400px; border-radius: 0 0 12px 12px; position: relative;">
+    
+    <!-- Bot message -->
+    <div style="margin-bottom: 1rem; display: flex; justify-content: flex-start;">
+      <div style="background-color: white; padding: 0.8rem 1rem; border-radius: 8px; max-width: 80%; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+        <p style="margin: 0; font-size: 0.95rem; color: #333;">👋 Hello! Welcome to Smart Market Support.</p>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.95rem; color: #333;">How can we help you today?</p>
+        <span style="font-size: 0.7rem; color: #999; margin-top: 0.3rem; display: block;">Just now</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 1rem; display: flex; justify-content: flex-start;">
+      <div style="background-color: white; padding: 0.8rem 1rem; border-radius: 8px; max-width: 80%; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+        <p style="margin: 0; font-size: 0.95rem; color: #333;">You can ask about:</p>
+        <ul style="margin: 0.5rem 0 0 1.2rem; padding: 0; font-size: 0.9rem; color: #333;">
+          <li>Product availability</li>
+          <li>Order tracking</li>
+          <li>Delivery information</li>
+          <li>Payment issues</li>
+          <li>General inquiries</li>
+        </ul>
+        <span style="font-size: 0.7rem; color: #999; margin-top: 0.3rem; display: block;">Just now</span>
+      </div>
+    </div>
+
+    <!-- Message input form -->
+    <form method="POST" style="position: absolute; bottom: 1rem; left: 1rem; right: 1rem; display: flex; gap: 0.5rem; align-items: center;">
+      {% csrf_token %}
+      <input 
+        type="text" 
+        name="message" 
+        placeholder="Type a message..." 
+        required
+        style="flex: 1; padding: 0.8rem 1rem; border: 1px solid #ddd; border-radius: 24px; font-size: 0.95rem; outline: none; background-color: white;"
+      >
+      <button 
+        type="submit" 
+        style="background-color: #25d366; color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(37,211,102,0.3);"
+      >
+        ▶
+      </button>
+    </form>
+
+    {% if user_message %}
+    <!-- User message (appears after submission) -->
+    <div style="margin-bottom: 1rem; display: flex; justify-content: flex-end; clear: both;">
+      <div style="background-color: #dcf8c6; padding: 0.8rem 1rem; border-radius: 8px; max-width: 80%; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+        <p style="margin: 0; font-size: 0.95rem; color: #333;">{{ user_message }}</p>
+        <span style="font-size: 0.7rem; color: #999; margin-top: 0.3rem; display: block; text-align: right;">✓✓ Just now</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 1rem; display: flex; justify-content: flex-start;">
+      <div style="background-color: white; padding: 0.8rem 1rem; border-radius: 8px; max-width: 80%; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+        <p style="margin: 0; font-size: 0.95rem; color: #333;">Thank you for your message! Our support team will get back to you shortly. ✅</p>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #666;">You can also reach us via:</p>
+        <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: #075e54;">📧 <a href="mailto:support@marchesmart.com" style="color: #075e54; text-decoration: underline;">support@marchesmart.com</a></p>
+        <p style="margin: 0.2rem 0 0 0; font-size: 0.85rem; color: #075e54;">📞 <a href="tel:+15551234567" style="color: #075e54; text-decoration: none;">+1 (555) 123-4567</a></p>
+        <span style="font-size: 0.7rem; color: #999; margin-top: 0.3rem; display: block;">Just now</span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div style="text-align: center; margin-top: 1.5rem; color: #666;">
+    <p style="font-size: 0.9rem;">💡 This is a demo support chat</p>
+    <p style="font-size: 0.85rem; margin-top: 0.5rem;">For immediate assistance, please use our <a href="{% url 'smart_market:contact' %}" style="color: #2b8a3e; text-decoration: underline;">contact form</a></p>
+  </div>
+</section>
+{% endblock %}
