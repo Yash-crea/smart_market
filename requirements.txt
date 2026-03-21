@@ -48,7 +48,7 @@ pillow==12.1.0
 # ASGI/WSGI & Production Server
 asgiref==3.11.0
 gunicorn==23.0.0
-whitenoise==6.7.0
+whitenoise>=6.7.0
 
 # Utilities
 python-dateutil==2.9.0.post0
