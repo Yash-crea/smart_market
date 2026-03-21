@@ -25,7 +25,7 @@
 
         <!-- Category Filter -->
         <div class="filter-group">
-          <label for="categorySelect">Category</label>
+          <label for="categorySelect">Category ({{ categories|length }} available)</label>
           <select id="categorySelect" name="category">
             <option value="">All Categories</option>
             {% for category in categories %}
@@ -34,6 +34,12 @@
               </option>
             {% endfor %}
           </select>
+          {% comment %}
+          <!-- Debug: Show all categories -->
+          <small style="color: #666;">
+            Available: {% for cat in categories %}{{ cat.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+          </small>
+          {% endcomment %}
         </div>
 
         <!-- Price Range Filter -->
@@ -58,7 +64,7 @@
               value="{{ max_price }}"
             >
           </div>
-          <small>Max available: RS{{ max_price_available|floatformat:2 }}</small>
+          <small>Max available: Rs {{ max_price_available|floatformat:2 }}</small>
         </div>
 
         <!-- Apply Filters Button -->
@@ -71,12 +77,101 @@
 
     <!-- Products Grid -->
     <main class="products-main">
+      
+      <!-- ML Recommendations Section (shown when no filters are active) -->
+      {% if show_recommendations and seasonal_recommendations or trending_products or weather_recommendations or discounted_products %}
+      <div class="recommendations-section" style="background: #f8f9fa; padding: 2rem; border-radius: 12px; margin-bottom: 2.5rem;">
+        <h2 style="color: #2b8a3e; font-size: 1.5rem; margin-bottom: 1.5rem; text-align: center;">🤖 AI-Powered Recommendations</h2>
+        
+        <!-- Seasonal Recommendations -->
+        {% if seasonal_recommendations %}
+        <div class="recommendation-group" style="margin-bottom: 2rem;">
+          <h3 style="color: #333; font-size: 1.2rem; margin-bottom: 1rem;">
+            🌟 Perfect for {{ season_display }}
+            {% if upcoming_festivals %} • {{ upcoming_festivals.0.display_name }}{% elif is_weekend %} • Weekend{% endif %}
+          </h3>
+          <div class="mini-products-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            {% for product in seasonal_recommendations %}
+            <div class="mini-product-card" style="background: white; border-radius: 8px; padding: 1rem; border: 1px solid #e9ecef; transition: box-shadow 0.2s;">
+              <h4 style="margin: 0 0 0.5rem 0; color: #333; font-size: 0.95rem; line-height: 1.3;">{{ product.name|truncatewords:4 }}</h4>
+              <p style="margin: 0 0 0.5rem 0; color: #2b8a3e; font-size: 0.8rem; font-weight: 600;">✨ {{ product.recommendation_reason }}</p>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #2b8a3e; font-weight: bold; font-size: 1rem;">Rs {{ product.price|floatformat:2 }}</span>
+                <span style="background: #e8f5e8; color: #2b8a3e; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">Recommended</span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+        
+        <!-- Row layout for other recommendations -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+          
+          <!-- Trending Products -->
+          {% if trending_products %}
+          <div class="recommendation-group">
+            <h3 style="color: #e74c3c; font-size: 1.1rem; margin-bottom: 1rem;">🔥 Trending</h3>
+            {% for product in trending_products %}
+            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #e74c3c;">
+              <div style="flex: 1;">
+                <p style="margin: 0; color: #333; font-size: 0.9rem; font-weight: 600;">{{ product.name|truncatewords:3 }}</p>
+                <p style="margin: 0; color: #e74c3c; font-size: 0.8rem;">{{ product.recommendation_reason }}</p>
+              </div>
+              <span style="color: #e74c3c; font-weight: bold; font-size: 0.9rem;">Rs {{ product.price|floatformat:2 }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          
+          <!-- Weather Recommendations -->
+          {% if weather_recommendations %}
+          <div class="recommendation-group">
+            <h3 style="color: #3498db; font-size: 1.1rem; margin-bottom: 1rem;">🌤️ Weather Picks</h3>
+            {% for product in weather_recommendations %}
+            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #3498db;">
+              <div style="flex: 1;">
+                <p style="margin: 0; color: #333; font-size: 0.9rem; font-weight: 600;">{{ product.name|truncatewords:3 }}</p>
+                <p style="margin: 0; color: #3498db; font-size: 0.8rem;">{{ product.recommendation_reason }}</p>
+              </div>
+              <span style="color: #3498db; font-weight: bold; font-size: 0.9rem;">Rs {{ product.price|floatformat:2 }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          
+          <!-- Discounted Products -->
+          {% if discounted_products %}
+          <div class="recommendation-group">
+            <h3 style="color: #f39c12; font-size: 1.1rem; margin-bottom: 1rem;">💰 Price Drops</h3>
+            {% for product in discounted_products %}
+            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #f39c12;">
+              <div style="flex: 1;">
+                <p style="margin: 0; color: #333; font-size: 0.9rem; font-weight: 600;">{{ product.name|truncatewords:3 }}</p>
+                <p style="margin: 0; color: #f39c12; font-size: 0.8rem;">{{ product.recommendation_reason }}</p>
+              </div>
+              <span style="color: #f39c12; font-weight: bold; font-size: 0.9rem;">Rs {{ product.price|floatformat:2 }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          
+        </div>
+        
+        <div style="text-align: center; margin-top: 1.5rem;">
+          <button onclick="loadMoreRecommendations()" style="background: #2b8a3e; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+            Load More Recommendations
+          </button>
+        </div>
+      </div>
+      {% endif %}
+      
       <div class="products-header">
         <p class="product-count">
           {% if search_query or selected_category or min_price or max_price %}
-            Found <strong>{{ products.count }}</strong> product(s)
+            Found <strong>{{ products|length }}</strong> product(s)
           {% else %}
-            Showing <strong>{{ products.count }}</strong> product(s)
+            Showing <strong>{{ products|length }}</strong> product(s)
           {% endif %}
         </p>
       </div>
@@ -86,10 +181,10 @@
           {% for product in products %}
             <div class="product-card">
               {% if product.image_url %}
-                <img src="{{ product.image_url }}" alt="{{ product.name }}" class="product-image">
+                <img src="{{ product.image_url }}" alt="{{ product.name }}" class="product-image" loading="lazy">
               {% else %}
                 <div class="product-image placeholder">
-                  <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                  <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No product image available">
                     <rect width="200" height="200" fill="#f0f0f0"/>
                     <text x="100" y="100" text-anchor="middle" dy="0.3em" fill="#999">No Image</text>
                   </svg>
@@ -108,18 +203,31 @@
                 {% endif %}
                 
                 <div class="product-footer">
-                  <span class="product-price">${{ product.price|floatformat:2 }}</span>
+                  <span class="product-price">Rs {{ product.price|floatformat:2 }}</span>
                   {% if product.stock_quantity > 0 %}
                     <span class="badge in-stock">In Stock ({{ product.stock_quantity }})</span>
                   {% else %}
                     <span class="badge out-of-stock">Out of Stock</span>
                   {% endif %}
                 </div>
+                {% comment %}Show Add to Cart button only for users who can access cart functionality{% endcomment %}
+                {% if can_access_cart %}
                 <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin-top:0.5rem;">
                   {% csrf_token %}
                   <input type="hidden" name="quantity" value="1">
                   <button type="submit" class="btn-add-to-cart" {% if product.stock_quantity <= 0 %}disabled{% endif %}>Add to Cart</button>
                 </form>
+                {% else %}
+                  {% if is_owner %}
+                    <div class="owner-notice" style="margin-top:0.5rem; padding:0.5rem; background-color:#e3f2fd; color:#1976d2; border-radius:4px; text-align:center; font-size:0.9rem;">
+                      Owner View - Inventory Management
+                    </div>
+                  {% elif is_staff_member %}
+                    <div class="staff-notice" style="margin-top:0.5rem; padding:0.5rem; background-color:#f3e5f5; color:#7b1fa2; border-radius:4px; text-align:center; font-size:0.9rem;">
+                      Staff View - Product Information
+                    </div>
+                  {% endif %}
+                {% endif %}
               </div>
             </div>
           {% endfor %}
@@ -441,4 +549,103 @@
     }
   }
 </style>
+
+<script>
+// Auto-submit form when category is selected
+document.addEventListener('DOMContentLoaded', function() {
+    const categorySelect = document.getElementById('categorySelect');
+    const priceInputs = document.querySelectorAll('#minPrice, #maxPrice');
+    const form = document.querySelector('.filters-form');
+    
+    // Auto-submit when category changes
+    if (categorySelect) {
+        categorySelect.addEventListener('change', function() {
+            form.submit();
+        });
+    }
+    
+    // Auto-submit when price changes (with slight delay)
+    priceInputs.forEach(input => {
+        let timeoutId;
+        input.addEventListener('input', function() {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                form.submit();
+            }, 1000); // Wait 1 second after user stops typing
+        });
+    });
+    
+    // Submit on Enter key in search
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                form.submit();
+            }
+        });
+    }
+});
+
+// ML Recommendations functionality
+function loadMoreRecommendations() {
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = 'Loading...';
+    button.disabled = true;
+    
+    // Cycle through different recommendation types
+    const types = ['seasonal', 'trending', 'weather', 'discount'];
+    const currentType = Math.floor(Math.random() * types.length);
+    
+    fetch(`{% url 'smart_market:recommendations_api' %}?type=${types[currentType]}&limit=6`)
+        .then(response => response.json())
+        .then(data => {
+            // Update recommendations section with new data
+            updateRecommendationsDisplay(data);
+            button.textContent = originalText;
+            button.disabled = false;
+        })
+        .catch(error => {
+            console.error('Error loading recommendations:', error);
+            button.textContent = 'Try Again';
+            button.disabled = false;
+        });
+}
+
+function updateRecommendationsDisplay(data) {
+    // Find the recommendations section and update it
+    const recommendationsSection = document.querySelector('.recommendations-section');
+    if (!recommendationsSection || !data.products.length) return;
+    
+    // Create new recommendations display
+    let newContent = `<h2 style="color: #2b8a3e; font-size: 1.5rem; margin-bottom: 1.5rem; text-align: center;">🤖 Fresh AI Recommendations</h2>`;
+    
+    newContent += `<div class="recommendation-group" style="margin-bottom: 2rem;">
+        <h3 style="color: #333; font-size: 1.2rem; margin-bottom: 1rem;">
+            ✨ ${data.type.charAt(0).toUpperCase() + data.type.slice(1)} Picks
+        </h3>
+        <div class="mini-products-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">`;
+    
+    data.products.forEach(product => {
+        newContent += `
+        <div class="mini-product-card" style="background: white; border-radius: 8px; padding: 1rem; border: 1px solid #e9ecef; transition: box-shadow 0.2s;">
+            <h4 style="margin: 0 0 0.5rem 0; color: #333; font-size: 0.95rem; line-height: 1.3;">${product.name}</h4>
+            <p style="margin: 0 0 0.5rem 0; color: #2b8a3e; font-size: 0.8rem; font-weight: 600;">✨ ${product.recommendation_reason}</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #2b8a3e; font-weight: bold; font-size: 1rem;">RS${parseFloat(product.price).toFixed(2)}</span>
+                <span style="background: #e8f5e8; color: #2b8a3e; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">New Pick</span>
+            </div>
+        </div>`;
+    });
+    
+    newContent += `</div></div>
+        <div style="text-align: center; margin-top: 1.5rem;">
+            <button onclick="loadMoreRecommendations()" style="background: #2b8a3e; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                Load More Recommendations
+            </button>
+        </div>`;
+    
+    recommendationsSection.innerHTML = newContent;
+}
+</script>
 {% endblock %}

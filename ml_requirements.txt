@@ -1,0 +1,21 @@
+# Machine Learning and Data Science Requirements
+# Add these to your main requirements.txt or install separately
+
+# Core ML libraries
+pandas>=1.5.0
+numpy>=1.21.0
+scikit-learn>=1.1.0
+joblib>=1.2.0
+
+# Optional: More advanced ML libraries for future enhancements
+# xgboost>=1.6.0
+# lightgbm>=3.3.0
+# matplotlib>=3.5.0
+# seaborn>=0.11.0
+# plotly>=5.0.0
+
+# Already in your Django project:
+# Django>=4.0.0
+# djangorestframework>=3.14.0
+# django-cors-headers>=3.13.0
+# django-filter>=22.1

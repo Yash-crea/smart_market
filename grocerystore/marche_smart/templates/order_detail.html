@@ -1,0 +1,408 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order #{{ order.order_number }} - Smart Market{% endblock %}
+
+{% block content %}
+<div class="order-detail-container">
+    <div class="order-header">
+        <h2>Order Details</h2>
+        <div class="order-meta">
+            <div class="order-number">
+                <strong>Order #{{ order.order_number }}</strong>
+            </div>
+            <div class="order-status status-{{ order.status }}">
+                {{ order.get_status_display }}
+            </div>
+        </div>
+    </div>
+
+    <div class="order-content">
+        <div class="order-info-section">
+            <div class="customer-info">
+                <h3>Customer Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Name:</label>
+                        <span>{{ order.customer_name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Email:</label>
+                        <span>{{ order.customer_email }}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Phone:</label>
+                        <span>{{ order.customer_phone|default:"Not provided" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="shipping-info">
+                <h3>Shipping Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Address:</label>
+                        <span>{{ order.shipping_address }}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>City:</label>
+                        <span>{{ order.shipping_city }}</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Postal Code:</label>
+                        <span>{{ order.shipping_postal_code|default:"Not provided" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="order-timeline">
+                <h3>Order Timeline</h3>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <span class="timeline-label">Order Placed:</span>
+                        <span class="timeline-value">{{ order.created_at|date:"M d, Y H:i" }}</span>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-label">Last Updated:</span>
+                        <span class="timeline-value">{{ order.updated_at|date:"M d, Y H:i" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="order-items-section">
+            <h3>Order Items</h3>
+            <div class="order-items-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Unit Price</th>
+                            <th>Quantity</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in order_items %}
+                        <tr>
+                            <td>{{ item.product_name }}</td>
+                            <td>Rs {{ item.unit_price }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>Rs {{ item.subtotal }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="no-items">No items found for this order.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="order-totals-section">
+            <h3>Order Totals</h3>
+            <div class="totals-grid">
+                <div class="total-item">
+                    <label>Subtotal:</label>
+                    <span>Rs {{ order.subtotal }}</span>
+                </div>
+                <div class="total-item">
+                    <label>Tax:</label>
+                    <span>Rs {{ order.tax_amount }}</span>
+                </div>
+                <div class="total-item">
+                    <label>Shipping:</label>
+                    <span>Rs {{ order.shipping_cost }}</span>
+                </div>
+                <div class="total-item total-final">
+                    <label><strong>Total Amount:</strong></label>
+                    <span><strong>Rs {{ order.total_amount }}</strong></span>
+                </div>
+            </div>
+        </div>
+
+        {% if payments %}
+        <div class="payment-info-section">
+            <h3>Payment Information</h3>
+            {% for payment in payments %}
+            <div class="payment-item">
+                <div class="payment-grid">
+                    <div class="payment-detail">
+                        <label>Payment Method:</label>
+                        <span>{{ payment.get_payment_method_display }}</span>
+                    </div>
+                    <div class="payment-detail">
+                        <label>Amount:</label>
+                        <span>Rs {{ payment.amount }}</span>
+                    </div>
+                    <div class="payment-detail">
+                        <label>Status:</label>
+                        <span class="status-{{ payment.status }}">{{ payment.get_status_display }}</span>
+                    </div>
+                    <div class="payment-detail">
+                        <label>Transaction ID:</label>
+                        <span>{{ payment.transaction_id }}</span>
+                    </div>
+                    {% if payment.card_last_four %}
+                    <div class="payment-detail">
+                        <label>Card:</label>
+                        <span>**** **** **** {{ payment.card_last_four }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="order-actions">
+        {% if is_owner_view %}
+            <a href="{% url 'smart_market:owner_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+        {% else %}
+            <a href="{% url 'smart_market:my_orders' %}" class="btn btn-secondary">Back to My Orders</a>
+        {% endif %}
+        
+        {% if order.status == 'pending' %}
+            <button class="btn btn-danger" onclick="confirmCancel()">Cancel Order</button>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.order-detail-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+}
+
+.order-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.order-number {
+    font-size: 1.2em;
+    color: #495057;
+}
+
+.order-status {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.9em;
+}
+
+.status-pending { background: #ffc107; color: #000; }
+.status-processing { background: #007bff; color: #fff; }
+.status-shipped { background: #17a2b8; color: #fff; }
+.status-delivered { background: #28a745; color: #fff; }
+.status-cancelled { background: #dc3545; color: #fff; }
+.status-refunded { background: #6c757d; color: #fff; }
+.status-completed { background: #28a745; color: #fff; }
+
+.order-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.order-info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.customer-info, .shipping-info, .order-timeline, .order-totals-section, .payment-info-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #28a745;
+}
+
+.order-items-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.info-grid, .totals-grid, .payment-grid {
+    display: grid;
+    gap: 15px;
+}
+
+.info-item, .total-item, .payment-detail {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.info-item:last-child, .total-item:last-child, .payment-detail:last-child {
+    border-bottom: none;
+}
+
+.total-final {
+    background: #e9ecef;
+    padding: 15px 10px !important;
+    margin-top: 10px;
+    border-radius: 5px;
+    border-bottom: none !important;
+}
+
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.timeline-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.order-items-table {
+    overflow-x: auto;
+}
+
+.order-items-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.order-items-table th,
+.order-items-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.order-items-table th {
+    background: #495057;
+    color: #fff;
+    font-weight: bold;
+}
+
+.order-items-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.no-items {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 40px !important;
+}
+
+.payment-item {
+    background: #fff;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+    margin-bottom: 15px;
+}
+
+.order-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    padding-top: 25px;
+    border-top: 2px solid #e9ecef;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+@media (max-width: 768px) {
+    .order-content {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .order-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .order-meta {
+        align-items: flex-start;
+    }
+
+    .order-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+</style>
+
+<script>
+function confirmCancel() {
+    if (confirm('Are you sure you want to cancel this order?')) {
+        fetch(`/owner/orders/{{ order.order_number }}/status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({ status: 'cancelled' })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.error || 'Cannot cancel this order'));
+            }
+        })
+        .catch(err => alert('Network error: ' + err));
+    }
+}
+</script>
+{% endblock %}

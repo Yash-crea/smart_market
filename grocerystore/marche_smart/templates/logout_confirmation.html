@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="logout-container">
+  <div class="logout-card">
+    {% if logged_out %}
+      <!-- User has been logged out - show confirmation -->
+      <div class="logout-success">
+        <div class="success-icon">✓</div>
+        <h2>Successfully Logged Out</h2>
+        <p class="logout-message">{{ display_name }}, you have been securely logged out from Smart Market.</p>
+        
+        <div class="security-reminder">
+          <div class="security-icon">🔒</div>
+          <h3>Security Reminder</h3>
+          <p>If you're using a public or shared computer, please:</p>
+          <ul>
+            <li>Close all browser windows</li>
+            <li>Clear browser history and cookies</li>
+            <li>Don't save passwords on this device</li>
+          </ul>
+        </div>
+        
+        <div class="action-buttons">
+          <a href="{% url 'smart_market:login' %}" class="btn-login">Login Again</a>
+          <a href="{% url 'smart_market:home' %}" class="btn-home">Return to Homepage</a>
+        </div>
+      </div>
+    {% else %}
+      <!-- User wants to logout - show confirmation form -->
+      <div class="logout-confirmation">
+        <div class="warning-icon">⚠️</div>
+        <h2>Confirm Logout</h2>
+        <p class="confirm-message">{{ display_name }}, are you sure you want to log out?</p>
+        
+        <form method="post" action="{% url 'smart_market:logout' %}" class="logout-form">
+          {% csrf_token %}
+          <div class="form-buttons">
+            <button type="submit" class="btn-confirm-logout">Yes, Logout</button>
+            <a href="javascript:history.back()" class="btn-cancel">Cancel</a>
+          </div>
+        </form>
+        
+        <div class="logout-info">
+          <p><strong>What happens when you logout:</strong></p>
+          <ul>
+            <li>Your session will be securely terminated</li>
+            <li>You'll need to login again to access your account</li>
+            <li>Your last actions will be preserved for next visit</li>
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+.logout-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 80vh;
+  padding: 2rem 1rem;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.logout-card {
+  background: white;
+  padding: 3rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+}
+
+.success-icon, .warning-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.success-icon {
+  color: #28a745;
+  background: #d4edda;
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.logout-card h2 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.8rem;
+}
+
+.logout-message, .confirm-message {
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
+.security-reminder {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.security-reminder .security-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.security-reminder h3 {
+  color: #856404;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.security-reminder p {
+  color: #856404;
+  margin-bottom: 0.5rem;
+}
+
+.security-reminder ul {
+  color: #856404;
+  margin-left: 1rem;
+}
+
+.security-reminder li {
+  margin-bottom: 0.25rem;
+}
+
+.action-buttons, .form-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.btn-login, .btn-home, .btn-confirm-logout {
+  background: #2b8a3e;
+  color: white;
+  text-decoration: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.btn-login:hover, .btn-home:hover, .btn-confirm-logout:hover {
+  background: #238a34;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(43, 138, 62, 0.3);
+  color: white;
+  text-decoration: none;
+}
+
+.btn-cancel {
+  background: #6c757d;
+  color: white;
+  text-decoration: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-cancel:hover {
+  background: #5a6268;
+  color: white;
+  text-decoration: none;
+}
+
+.logout-info {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  text-align: left;
+}
+
+.logout-info p {
+  color: #1565c0;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.logout-info ul {
+  color: #1976d2;
+  margin-left: 1rem;
+}
+
+.logout-info li {
+  margin-bottom: 0.25rem;
+}
+
+.logout-form {
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .logout-card {
+    padding: 2rem 1rem;
+  }
+  
+  .action-buttons, .form-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .logout-card h2 {
+    font-size: 1.5rem;
+  }
+  
+  .success-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 3rem;
+  }
+}
+</style>
+{% endblock %}

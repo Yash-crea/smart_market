@@ -18,6 +18,7 @@
             <p id="aboutDesc">Marché Smart is an intelligent e-commerce platform built to support local supermarkets and producers. We combine online shopping and smart recommendations, to help businesses grow while giving customers a simple and modern shopping experience.</p>
           </div>
           <form id="aboutEditForm" style="display:none">
+            {% csrf_token %}
             <textarea id="aboutDescInput" rows="6" class="input"></textarea>
             <div style="margin-top:0.6rem; display:flex; gap:0.6rem; align-items:center;">
               <button id="saveAboutBtn" type="submit" class="btn primary">Save</button>

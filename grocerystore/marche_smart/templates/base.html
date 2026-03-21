@@ -28,6 +28,9 @@
   <!-- Favicons -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMzIiIGZpbGw9IiMyYjhhM2UiLz4KPHBhdGggZD0iTTE4IDIwaDI4djEySDE4eiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTIyIDMybC00IDE0aDI4bC00LTE0IiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSIyNiIgY3k9IjUwIiByPSIyIiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSI0MiIgY3k9IjUwIiByPSIyIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K">
   
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  
   <!-- Microsoft PWA Tags -->
   <meta name="msapplication-TileColor" content="#2b8a3e">
   <meta name="msapplication-config" content="none">
@@ -58,26 +61,39 @@
         <span class="site-title">Smart Market</span>
       </a>
 
-      <form id="searchForm" class="search-form" role="search">
-        <input id="searchInput" name="q" type="search" placeholder="Search products...">
+      <form id="searchForm" class="search-form" role="search" method="get" action="{% url 'smart_market:shop' %}">
+        <input id="searchInput" name="search" type="search" placeholder="Search products...">
         <button type="submit" aria-label="Search">Search</button>
       </form>
 
-      <ul class="nav-links">
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+
+      <ul class="nav-links" id="navLinks">
         <li><a href="{% url 'smart_market:home' %}">Home</a></li>
         <li><a href="{% url 'smart_market:shop' %}">Shop</a></li>
         <li><a href="{% url 'smart_market:about' %}">About</a></li>
         <li><a href="{% url 'smart_market:contact' %}">Contact</a></li>
+        {% comment %}Show cart only for users who can access cart functionality{% endcomment %}
+        {% if can_access_cart %} 
         <li>
           <a href="{% url 'smart_market:cart' %}" class="cart-link">
             <svg viewBox="0 0 24 24" width="20" height="20">
-              <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
+              <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
             </svg>
             <span class="cart-count">{{ request.session.cart_count|default:0 }}</span>
           </a>
         </li>
+        {% endif %}
         <li>
-          <a href="{% url 'smart_market:login' %}">Login</a>
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'smart_market:logout' %}" class="logout-link">Logout</a>
+          {% else %}
+            <a href="{% url 'smart_market:login' %}">Login</a>
+          {% endif %}
         </li>
       </ul>
     </nav>
@@ -85,26 +101,7 @@
 
   <main>
     {% block content %}
-
-    <section id="home" class="hero">
-      <h1>Welcome to Smart Market - Your One-Stop Grocery Shop!</h1>
-      <p>Smart supermarket shopping for SMEs — frontend prototype.</p>
-    </section>
-
-    <section id="shop" class="shop">
-      <h2>Shop</h2>
-      <p>Product grid / filters will go here.</p>
-    </section>
-
-    <section id="owner" class="owner-dashboard" hidden>
-      <h2>Owner Dashboard (placeholder)</h2>
-      <p>Sales, analytics and reports would appear here.</p>
-    </section>
-
-    <section id="customer" class="customer-dashboard" hidden>
-      <h2>Customer Dashboard (placeholder)</h2>
-      <p>Orders, purchase history and recommendations would appear here.</p>
-    </section>
+    <!-- Individual page templates will override this block -->
     {% endblock %}
   </main>
 
@@ -366,6 +363,28 @@
         width: 50px;
         height: 50px;
       }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+    }
+
+    /* Logout link styles */
+    .logout-link {
+      color: #dc3545 !important;
+      text-decoration: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      transition: all 0.3s ease;
+    }
+
+    .logout-link:hover {
+      background: #dc3545;
+      color: white !important;
+      text-decoration: none;
     }
   </style>
 

@@ -1,5 +1,107 @@
 {% extends 'base.html' %}
 {% block content %}
-<h1>Staff Dashboard</h1>
-<p>Welcome, staff member!</p>
+<section style="max-width: 1200px; margin: 0 auto; padding: 2rem 1rem;">
+  <div style="margin-bottom: 2rem;">
+    <h1 style="color: #333; margin-bottom: 0.5rem;">Staff Dashboard</h1>
+    <p style="color: #666;">Welcome, {{ staff_name }}! Here's your overview.</p>
+  </div>
+
+  {% if error_message %}
+  <div style="padding: 1rem; background: #fff3cd; border-radius: 8px; color: #856404; margin-bottom: 1.5rem;">
+    {{ error_message }}
+  </div>
+  {% endif %}
+
+  <!-- Stats Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 1.5rem; border-radius: 12px;">
+      <div style="font-size: 2rem; font-weight: bold;">{{ total_products|default:"0" }}</div>
+      <div style="opacity: 0.9;">Total Products</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #f093fb, #f5576c); color: white; padding: 1.5rem; border-radius: 12px;">
+      <div style="font-size: 2rem; font-weight: bold;">{{ pending_orders|default:"0" }}</div>
+      <div style="opacity: 0.9;">Pending Orders</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; padding: 1.5rem; border-radius: 12px;">
+      <div style="font-size: 2rem; font-weight: bold;">{{ customer_count|default:"0" }}</div>
+      <div style="opacity: 0.9;">Customers</div>
+    </div>
+    <div style="background: linear-gradient(135deg, {% if low_stock_count > 0 %}#ff6b6b, #ee5a24{% else %}#43e97b, #38f9d7{% endif %}); color: white; padding: 1.5rem; border-radius: 12px;">
+      <div style="font-size: 2rem; font-weight: bold;">{{ low_stock_count|default:"0" }}</div>
+      <div style="opacity: 0.9;">Low Stock Alerts</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <!-- Recent Orders -->
+    <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+      <h2 style="margin: 0 0 1rem; color: #333; font-size: 1.3rem;">📦 Recent Orders</h2>
+      {% if recent_orders %}
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid #eee;">
+              <th style="padding: 0.75rem; text-align: left; color: #666;">Order #</th>
+              <th style="padding: 0.75rem; text-align: left; color: #666;">Customer</th>
+              <th style="padding: 0.75rem; text-align: left; color: #666;">Total</th>
+              <th style="padding: 0.75rem; text-align: left; color: #666;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in recent_orders %}
+            <tr style="border-bottom: 1px solid #f0f0f0;">
+              <td style="padding: 0.75rem; font-weight: 600;">#{{ order.order_number }}</td>
+              <td style="padding: 0.75rem;">{{ order.customer_name }}</td>
+              <td style="padding: 0.75rem;">Rs {{ order.total_amount|floatformat:2 }}</td>
+              <td style="padding: 0.75rem;">
+                <span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p style="color: #666; text-align: center; padding: 2rem;">No orders yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Low Stock Alerts -->
+    <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+      <h2 style="margin: 0 0 1rem; color: #333; font-size: 1.3rem;">⚠️ Low Stock Items</h2>
+      {% if low_stock_products %}
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% for product in low_stock_products %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #fff5f5; border-radius: 6px; border-left: 3px solid #e74c3c;">
+          <div>
+            <div style="font-weight: 600; color: #333; font-size: 0.9rem;">{{ product.name|truncatewords:4 }}</div>
+            <div style="color: #e74c3c; font-size: 0.8rem;">{{ product.stock_quantity }} left</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="text-align: center; padding: 2rem; color: #2b8a3e;">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
+        <p>All products are well stocked!</p>
+      </div>
+      {% endif %}
+
+      <!-- Quick Actions -->
+      <h3 style="margin: 1.5rem 0 1rem; color: #333; font-size: 1.1rem;">🚀 Quick Actions</h3>
+      <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <a href="{% url 'smart_market:shop' %}" style="display: block; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; text-decoration: none; color: #333; font-weight: 500; text-align: center;">🛍️ View Shop</a>
+        <a href="{% url 'smart_market:contact' %}" style="display: block; padding: 0.75rem; background: #f8f9fa; border-radius: 6px; text-decoration: none; color: #333; font-weight: 500; text-align: center;">📞 Contact Support</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  @media (max-width: 768px) {
+    section > div:last-child {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
 {% endblock %}

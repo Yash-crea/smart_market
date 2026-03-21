@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Success Header -->
+            <div class="text-center mb-4">
+                <div class="mb-3">
+                    <i class="fas fa-check-circle text-success" style="font-size: 64px;"></i>
+                </div>
+                <h2 class="text-success">Order Confirmed!</h2>
+                <p class="lead">Thank you for your purchase. Your order has been placed successfully.</p>
+            </div>
+
+            <!-- Order Details Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-receipt"></i> Order Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Order Number:</strong><br>
+                            <span class="text-primary">{{ order.order_number }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Order Date:</strong><br>
+                            {{ order.created_at|date:"F d, Y g:i A" }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Status:</strong><br>
+                            <span class="badge bg-warning">{{ order.get_status_display }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Payment Method:</strong><br>
+                            {{ payment.get_payment_method_display }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Customer:</strong><br>
+                            {{ order.customer_name }}<br>
+                            {{ order.customer_email }}
+                            {% if order.customer_phone %}
+                                <br>{{ order.customer_phone }}
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Shipping Address:</strong><br>
+                            {{ order.shipping_address }}<br>
+                            {{ order.shipping_city }}
+                            {% if order.shipping_postal_code %}
+                                {{ order.shipping_postal_code }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-shopping-bag"></i> Order Items</h5>
+                </div>
+                <div class="card-body">
+                    {% for item in order_items %}
+                    <div class="row align-items-center py-2">
+                        <div class="col-md-6">
+                            <h6 class="mb-0">{{ item.product_name }}</h6>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <span class="text-muted">Qty: {{ item.quantity }}</span>
+                        </div>
+                        <div class="col-md-2 text-right">
+                            <span>Rs {{ item.unit_price }}</span>
+                        </div>
+                        <div class="col-md-2 text-right">
+                            <strong>Rs {{ item.subtotal }}</strong>
+                        </div>
+                    </div>
+                    {% if not forloop.last %}<hr>{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calculator"></i> Order Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 offset-md-6">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Subtotal:</span>
+                                <span>Rs {{ order.subtotal }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Tax:</span>
+                                <span>Rs {{ order.tax_amount }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Shipping:</span>
+                                <span>Rs {{ order.shipping_cost }}</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between">
+                                <strong>Total:</strong>
+                                <strong>Rs {{ order.total_amount }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Steps -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> What's Next?</h5>
+                </div>
+                <div class="card-body">
+                    {% if payment.payment_method == 'cash_on_delivery' %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-truck"></i>
+                            <strong>Cash on Delivery:</strong> Please have the exact amount ready when our delivery person arrives. Your order will be processed and shipped within 24 hours.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-credit-card"></i>
+                            <strong>Payment Confirmed:</strong> Your payment has been processed successfully. Your order will be prepared and shipped within 24 hours.
+                        </div>
+                    {% endif %}
+                    
+                    <ul class="list-unstyled mb-0">
+                        <li><i class="fas fa-check text-success"></i> Order confirmation email sent</li>
+                        <li><i class="fas fa-check text-success"></i> Order being prepared</li>
+                        <li><i class="fas fa-clock text-warning"></i> Estimated delivery: 1-2 business days</li>
+                        <li><i class="fas fa-envelope text-info"></i> Tracking information will be emailed to you</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="text-center">
+                <a href="{% url 'smart_market:my_orders' %}" class="btn btn-primary me-3">
+                    <i class="fas fa-list"></i> View All Orders
+                </a>
+                <a href="{% url 'smart_market:shop' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-shopping-bag"></i> Continue Shopping
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: none;
+}
+
+.fa-check-circle {
+    animation: checkmark 0.6s ease-in-out;
+}
+
+@keyframes checkmark {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.alert {
+    border-left: 4px solid;
+}
+
+.alert-info {
+    border-left-color: #17a2b8;
+}
+
+.alert-success {
+    border-left-color: #28a745;
+}
+</style>
+{% endblock %}

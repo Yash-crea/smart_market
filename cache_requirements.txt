@@ -1,0 +1,16 @@
+# Caching Requirements for Marche Smart Grocery Store
+# Add these to your main requirements.txt or run: pip install -r cache_requirements.txt
+
+# Redis cache backend (primary caching solution)
+redis>=4.5.0
+django-redis>=5.2.0
+
+# Alternative memory cache (built into Django as fallback)
+
+# Optional: Additional caching utilities
+# python-memcached>=1.59  # For Memcached as alternative
+# hiredis>=2.2.0          # For faster Redis performance (C based parser)
+
+# Already in your project:
+# Django>=4.0.0
+# djangorestframework>=3.14.0

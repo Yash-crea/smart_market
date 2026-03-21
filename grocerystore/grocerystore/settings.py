@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +22,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=u@emh!t^uzu3)id&()_b8_xexbd#eq&ixs-t6=l^p(8mm5l26'
+SECRET_KEY = config('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DJANGO_DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config('DJANGO_ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 
 # Application definition
@@ -37,10 +39,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
+    'corsheaders',
+    'django_filters',
     'marche_smart',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -62,6 +69,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'marche_smart.context_processors.user_role_context',
             ],
         },
     },
@@ -77,22 +85,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-    },
-    'smart_market': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'smart_market',
-        'USER': 'sqluser',
-        'PASSWORD': 'password',
-        'HOST': 'localhost',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'charset': 'utf8mb4',
-        },
     }
 }
-
-DATABASE_ROUTERS = ['marche_smart.routers.SmartMarketRouter']
 
 
 # Password validation
@@ -131,11 +125,282 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-# Email backend for development (console)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_HOST_USER = 'filliebene@gmail.com'  # Replace with your Gmail address
-EMAIL_HOST_PASSWORD = 'Filli@1234'   # Replace with your Gmail App Password
-EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = 'filliebene@gmail.com'  # Or any sender email you want
+# Default primary key field type
+# https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ============= CACHING CONFIGURATION =============
+
+# Redis Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'grocerystore',
+        'TIMEOUT': 300,  # 5 minutes default
+    },
+    # Fallback to local memory cache if Redis is not available
+    'fallback': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-grocerystore',
+        'TIMEOUT': 300,
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+        }
+    }
+}
+
+# Cache timeouts (in seconds)
+CACHE_TIMEOUTS = {
+    'PRODUCTS': 300,           # 5 minutes for product listings
+    'RECOMMENDATIONS': 600,    # 10 minutes for recommendations
+    'CATEGORIES': 1800,        # 30 minutes for categories
+    'ANALYTICS': 900,          # 15 minutes for analytics
+    'WEATHER': 1800,          # 30 minutes for weather data
+    'USER_CART': 3600,        # 1 hour for user cart data
+}
+
+
+# ============= SSH CONFIGURATION =============
+
+# SSH Connection Settings for deployment and monitoring
+SSH_SETTINGS = {
+    'TIMEOUT': int(os.getenv('SSH_TIMEOUT', '30')),
+    'MAX_RETRIES': int(os.getenv('SSH_MAX_RETRIES', '3')),
+    'USE_SYSTEM_HOST_KEYS': os.getenv('SSH_USE_SYSTEM_HOST_KEYS', 'True').lower() == 'true',
+    'AUTO_ADD_UNKNOWN_HOSTS': os.getenv('SSH_AUTO_ADD_UNKNOWN_HOSTS', 'False').lower() == 'true',
+    'LOG_LEVEL': os.getenv('SSH_LOG_LEVEL', 'INFO'),
+    'ENABLE_ALERTS': os.getenv('ENABLE_SSH_ALERTS', 'True').lower() == 'true',
+}
+
+# Remote deployment paths
+DEPLOYMENT_SETTINGS = {
+    'REMOTE_PROJECT_PATH': os.getenv('REMOTE_PROJECT_PATH', '/var/www/grocery_store'),
+    'BACKUP_PATH': os.getenv('BACKUP_PATH', '/home/ubuntu/backups'),
+    'MONITOR_INTERVAL': int(os.getenv('MONITOR_INTERVAL', '300')),
+}
+
+# Server definitions (loaded from environment variables)
+SSH_SERVERS = {
+    'production': {
+        'hostname': os.getenv('PROD_HOST', 'localhost'),
+        'username': os.getenv('PROD_USER', 'ubuntu'),
+        'port': int(os.getenv('PROD_PORT', '22')),
+        'key_file': os.getenv('PROD_KEY_FILE', '~/.ssh/id_rsa'),
+        'environment': 'production'
+    },
+    'staging': {
+        'hostname': os.getenv('STAGING_HOST', 'localhost'),
+        'username': os.getenv('STAGING_USER', 'ubuntu'),
+        'port': int(os.getenv('STAGING_PORT', '22')),
+        'key_file': os.getenv('STAGING_KEY_FILE', '~/.ssh/id_rsa'),
+        'environment': 'staging'
+    },
+    'database': {
+        'hostname': os.getenv('DB_HOST', 'localhost'),
+        'username': os.getenv('DB_USER', 'ubuntu'),
+        'port': int(os.getenv('DB_PORT', '22')),
+        'key_file': os.getenv('DB_KEY_FILE', '~/.ssh/id_rsa'),
+        'environment': 'database'
+    },
+    'cache': {
+        'hostname': os.getenv('CACHE_HOST', 'localhost'),
+        'username': os.getenv('CACHE_USER', 'ubuntu'),
+        'port': int(os.getenv('CACHE_PORT', '22')),
+        'key_file': os.getenv('CACHE_KEY_FILE', '~/.ssh/id_rsa'),
+        'environment': 'cache'
+    }
+}
+
+# Security: Only enable SSH features in non-DEBUG mode by default
+SSH_ENABLED = not DEBUG and os.getenv('ENABLE_SSH_FEATURES', 'False').lower() == 'true'
+
+# SSH operation permissions (staff only by default)
+SSH_PERMISSIONS = {
+    'DEPLOYMENT': 'staff',      # Only staff can deploy
+    'MONITORING': 'staff',      # Only staff can monitor
+    'COMMAND_EXECUTION': 'superuser',  # Only superusers can execute commands
+}
+
+
+# ============= DJANGO REST FRAMEWORK CONFIGURATION =============
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
+    'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',
+    'DATE_FORMAT': '%Y-%m-%d',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour'
+    },
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    'DEFAULT_VERSION': 'v1',
+    'ALLOWED_VERSIONS': ['v1'],
+    'VERSION_PARAM': 'version'
+}
+
+# ============= CORS CONFIGURATION =============
+
+# CORS settings for API access from frontend applications
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React dev server
+    "http://127.0.0.1:3000",
+    "http://localhost:8080",  # Vue dev server  
+    "http://127.0.0.1:8080",
+    "http://localhost:4200",  # Angular dev server
+    "http://127.0.0.1:4200",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in development
+
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# ============= API SPECIFIC SETTINGS =============
+
+# Machine Learning Model Storage
+ML_MODELS_ROOT = BASE_DIR / 'ml_models'
+
+# Weather API Configuration (for weather-based recommendations)
+WEATHER_API_KEY = config('WEATHER_API_KEY', default='')
+WEATHER_API_URL = 'https://api.openweathermap.org/data/2.5'
+
+# Recommendation Engine Settings
+RECOMMENDATION_CACHE_TIMEOUT = 3600  # 1 hour in seconds
+MAX_RECOMMENDATIONS_PER_REQUEST = 50
+
+# ML Prediction Settings
+ML_PREDICTION_BATCH_SIZE = 100
+ML_RETRAIN_INTERVAL_DAYS = 7
+
+# Analytics Settings
+ANALYTICS_RETENTION_DAYS = 365  # Keep analytics data for 1 year
+
+# Email Configuration for notifications
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='localhost')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@marchesmart.com')
+
+# Celery Configuration (for background tasks)
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+
+# File Upload Settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
+
+# Security Settings for API
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# Cache Configuration (for API response caching)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'TIMEOUT': 300,  # 5 minutes
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+            'CULL_FREQUENCY': 3,
+        }
+    }
+}
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'debug.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'marche_smart': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# Email backend for development (console) # Or any sender email you want

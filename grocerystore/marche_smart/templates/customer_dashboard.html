@@ -1,34 +1,1144 @@
 {% extends 'base.html' %}
 {% block content %}
 <section class="dashboard customer-dashboard">
-  <h2>Customer Dashboard</h2>
-  {% if customer %}
-    <div class="dashboard-cards">
-      <div class="card">
-        <h3>Name</h3>
-        <p>{{ customer.name }}</p>
-      </div>
-      <div class="card">
-        <h3>Email</h3>
-        <p>{{ customer.email }}</p>
-      </div>
-      <div class="card">
-        <h3>Current Purchase Total</h3>
-        <p>${{ current_purchase_total }}</p>
+  <div class="dashboard-header">
+    <h1>Welcome back, {{ customer_name }}!</h1>
+    <p class="dashboard-subtitle">Manage your orders and account settings</p>
+  </div>
+
+  <div class="dashboard-stats">
+    <div class="stat-card spending">
+      <div class="stat-icon" role="img" aria-label="Spending">💰</div>
+      <div class="stat-info">
+        <span class="stat-number">Rs {{ total_spent|floatformat:2 }}</span>
+        <span class="stat-label">Total Spent</span>
+        <div class="stat-trend">+12% this month</div>
       </div>
     </div>
-    <div class="dashboard-section">
-      <h3>Orders</h3>
-      <ul>
-        {% for order in orders %}
-          <li>Order #{{ order.id }} - ${{ order.total }}</li>
-        {% empty %}
-          <li>No orders found.</li>
-        {% endfor %}
-      </ul>
+    <div class="stat-card orders">
+      <div class="stat-icon" role="img" aria-label="Orders">📦</div>
+      <div class="stat-info">
+        <span class="stat-number">{{ total_orders }}</span>
+        <span class="stat-label">Total Orders</span>
+        <div class="stat-trend">{{ pending_orders }} pending</div>
+      </div>
     </div>
-  {% else %}
-    <p>No customer information found.</p>
-  {% endif %}
+    <div class="stat-card cart">
+      <div class="stat-icon" role="img" aria-label="Cart">🛒</div>
+      <div class="stat-info">
+        <span class="stat-number">{{ cart_item_count }}</span>
+        <span class="stat-label">Items in Cart</span>
+        <div class="stat-trend">Rs {{ cart_total|floatformat:2 }}</div>
+      </div>
+    </div>
+    <div class="stat-card wishlist">
+      <div class="stat-icon" role="img" aria-label="Wishlist">❤️</div>
+      <div class="stat-info">
+        <span class="stat-number">0</span>
+        <span class="stat-label">Wishlist Items</span>
+        <div class="stat-trend">Coming Soon</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-content">
+    <div class="dashboard-main">
+      <!-- Order Summary Table -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2>📊 Order Summary</h2>
+          <a href="{% url 'smart_market:my_orders' %}" class="view-all-btn">View All Orders</a>
+        </div>
+        
+        {% if recent_orders %}
+          <div class="order-table-container">
+            <table class="order-table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Date</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in recent_orders %}
+                  <tr>
+                    <td class="order-number">#{{ order.order_number }}</td>
+                    <td class="order-date">{{ order.created_at|date:"M d, Y" }}</td>
+                    <td class="order-items">{{ order.items.count }} item{{ order.items.count|pluralize }}</td>
+                    <td class="order-total">Rs {{ order.total_amount|floatformat:2 }}</td>
+                    <td>
+                      <span class="status-badge status-{{ order.status }}">
+                        {% if order.status == 'pending' %}🕐 Pending
+                        {% elif order.status == 'processing' %}🔄 Processing
+                        {% elif order.status == 'shipped' %}🚚 Shipped
+                        {% elif order.status == 'delivered' %}✅ Delivered
+                        {% elif order.status == 'cancelled' %}❌ Cancelled
+                        {% endif %}
+                      </span>
+                    </td>
+                    <td>
+                      <a href="{% url 'smart_market:order_detail' order.order_number %}" class="btn-small">View</a>
+                      {% if order.status == 'shipped' %}
+                        <a href="#tracking-{{ order.id }}" class="btn-small btn-track">Track</a>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <div class="empty-icon">📦</div>
+            <h3>No orders yet</h3>
+            <p>Start shopping to see your orders here!</p>
+            <a href="{% url 'smart_market:shop' %}" class="btn-primary">Start Shopping</a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Delivery Tracking Timeline -->
+      {% if recent_orders %}
+        <div class="section-card">
+          <div class="section-header">
+            <h2>🚚 Delivery Tracking</h2>
+          </div>
+          
+          <div class="tracking-container">
+            {% with shipped_orders=recent_orders|default_if_none:"" %}
+              {% for order in shipped_orders %}
+                {% if order.status == 'shipped' or order.status == 'delivered' %}
+                  <div class="tracking-item" id="tracking-{{ order.id }}">
+                    <div class="tracking-header">
+                      <h4>Order #{{ order.order_number }}</h4>
+                      <span class="tracking-eta">Expected: {{ order.created_at|date:"M d" }}</span>
+                    </div>
+                    
+                    <div class="timeline">
+                      <div class="timeline-item completed">
+                        <div class="timeline-marker">✓</div>
+                        <div class="timeline-content">
+                          <h5>Order Confirmed</h5>
+                          <p>{{ order.created_at|date:"M d, H:i" }}</p>
+                        </div>
+                      </div>
+                      
+                      <div class="timeline-item {% if order.status != 'pending' %}completed{% endif %}">
+                        <div class="timeline-marker">📦</div>
+                        <div class="timeline-content">
+                          <h5>Processing</h5>
+                          <p>{% if order.status != 'pending' %}{{ order.updated_at|date:"M d, H:i" }}{% else %}Pending{% endif %}</p>
+                        </div>
+                      </div>
+                      
+                      <div class="timeline-item {% if order.status == 'shipped' or order.status == 'delivered' %}completed{% else %}pending{% endif %}">
+                        <div class="timeline-marker">🚚</div>
+                        <div class="timeline-content">
+                          <h5>Shipped</h5>
+                          <p>{% if order.status == 'shipped' or order.status == 'delivered' %}{{ order.updated_at|date:"M d, H:i" }}{% else %}Not shipped yet{% endif %}</p>
+                        </div>
+                      </div>
+                      
+                      <div class="timeline-item {% if order.status == 'delivered' %}completed{% else %}pending{% endif %}">
+                        <div class="timeline-marker">🏠</div>
+                        <div class="timeline-content">
+                          <h5>Delivered</h5>
+                          <p>{% if order.status == 'delivered' %}{{ order.updated_at|date:"M d, H:i" }}{% else %}Not delivered yet{% endif %}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {% endif %}
+              {% empty %}
+                <div class="empty-tracking">
+                  <div class="empty-icon">🚚</div>
+                  <p>No shipments to track at the moment</p>
+                </div>
+              {% endfor %}
+            {% endwith %}
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Spending Analytics -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2>💰 Spending Analytics</h2>
+          <div class="time-filter">
+            <button class="filter-btn active" onclick="changeFilter('month')">This Month</button>
+            <button class="filter-btn" onclick="changeFilter('year')">This Year</button>
+          </div>
+        </div>
+        
+        <div class="spending-chart">
+          <div class="chart-header">
+            <h4>Monthly Spending Trend</h4>
+            <span class="trend-indicator positive">📈 +12% vs last month</span>
+          </div>
+          <div class="mini-chart">
+            <div class="chart-bars">
+              <div class="bar" style="height: 60%;" title="Jan: Rs 1200"></div>
+              <div class="bar" style="height: 45%;" title="Feb: Rs 900"></div>
+              <div class="bar" style="height: 80%;" title="Mar: Rs 1600"></div>
+              <div class="bar" style="height: 70%;" title="Apr: Rs 1400"></div>
+              <div class="bar" style="height: 90%;" title="May: Rs 1800"></div>
+              <div class="bar" style="height: 95%;" title="Jun: Rs 1900"></div>
+            </div>
+            <div class="chart-labels">
+              <span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="spending-insights">
+          <div class="insight-item">
+            <span class="insight-icon">🛒</span>
+            <div class="insight-text">
+              <strong>Most Purchased:</strong> Fruits & Vegetables
+            </div>
+          </div>
+          <div class="insight-item">
+            <span class="insight-icon">📅</span>
+            <div class="insight-text">
+              <strong>Shopping Pattern:</strong> Weekly shopper
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wishlist Section -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2>❤️ My Wishlist</h2>
+          <span class="wishlist-count">Coming Soon</span>
+        </div>
+        
+        <div class="wishlist-preview">
+          <div style="text-align: center; padding: 2rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">❤️</div>
+            <h3 style="color: #333; margin-bottom: 0.5rem;">Wishlist Coming Soon</h3>
+            <p style="color: #666; margin-bottom: 1rem;">Save your favorite items and get notified about price drops!</p>
+            <a href="{% url 'smart_market:shop' %}" style="display: inline-block; padding: 0.75rem 1.5rem; background: #2b8a3e; color: white; border-radius: 6px; text-decoration: none; font-weight: 600;">Browse Products</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-sidebar">
+      <!-- Profile Section -->
+      <div class="section-card profile-card">
+        <div class="profile-header">
+          <div class="profile-avatar">
+            <div class="avatar-placeholder">{{ customer_name|first|upper }}</div>
+          </div>
+          <div class="profile-info">
+            <h3>{{ customer_name }}</h3>
+            <p class="member-since">Member since {{ user.date_joined|date:"M Y" }}</p>
+          </div>
+        </div>
+        
+        <div class="profile-stats">
+          <div class="profile-stat">
+            <span class="stat-value">{{ total_orders }}</span>
+            <span class="stat-name">Orders</span>
+          </div>
+          <div class="profile-stat">
+            <span class="stat-value">{{ user.date_joined|timesince|truncatewords:2 }}</span>
+            <span class="stat-name">Member</span>
+          </div>
+          <div class="profile-stat">
+            <span class="stat-value">⭐⭐⭐⭐⭐</span>
+            <span class="stat-name">Rating</span>
+          </div>
+        </div>
+        
+        <div class="profile-actions">
+          <button class="btn-profile-edit">✏️ Edit Profile</button>
+          <button class="btn-profile-settings">⚙️ Settings</button>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="section-card">
+        <h3>🚀 Quick Actions</h3>
+        <div class="quick-actions">
+          <a href="{% url 'smart_market:shop' %}" class="action-btn">
+            <span class="action-icon">🛍️</span>
+            <span>Continue Shopping</span>
+          </a>
+          <a href="{% url 'smart_market:cart' %}" class="action-btn">
+            <span class="action-icon">🛒</span>
+            <span>View Cart ({{ cart_item_count }})</span>
+          </a>
+          <a href="{% url 'smart_market:my_orders' %}" class="action-btn">
+            <span class="action-icon">📋</span>
+            <span>Order History</span>
+          </a>
+          <button onclick="showComingSoon('Reorder')" class="action-btn">
+            <span class="action-icon">🔄</span>
+            <span>Reorder Favorites</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Account Summary -->
+      <div class="section-card account-summary">
+        <h3>📈 Account Summary</h3>
+        <div class="summary-item">
+          <span class="summary-label">Total Spent</span>
+          <span class="summary-value">Rs {{ total_spent|floatformat:2 }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Average Order</span>
+          <span class="summary-value">{% if total_orders > 0 %}Rs {{ average_order_value|default:"0.00"|floatformat:2 }}{% else %}Rs 0.00{% endif %}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Last Order</span>
+          <span class="summary-value">{% if recent_orders %}{{ recent_orders.0.created_at|date:"M d" }}{% else %}Never{% endif %}</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
+
+<style>
+.customer-dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+  color: #333;
+  margin-bottom: 0.5rem;
+  font-size: 2.5rem;
+}
+
+.dashboard-subtitle {
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  padding: 1.5rem;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+}
+
+.stat-card.spending {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.stat-card.orders {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.stat-card.cart {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+}
+
+.stat-card.wishlist {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: white;
+}
+
+.stat-icon {
+  font-size: 3rem;
+  opacity: 0.9;
+  animation: pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
+}
+
+.stat-number {
+  display: block;
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin-bottom: 0.3rem;
+  animation: countUp 1s ease-out;
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.dashboard-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+}
+
+.section-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin-bottom: 1rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.view-all-btn {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.view-all-btn:hover {
+  text-decoration: underline;
+}
+
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.order-info .order-number {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.order-date {
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: normal;
+  margin-left: 1rem;
+}
+
+.order-details {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.order-details span {
+  margin-right: 1rem;
+}
+
+.status-badge {
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status-pending { background: #fff3cd; color: #856404; }
+.status-processing { background: #d1ecf1; color: #0c5460; }
+.status-shipped { background: #d4edda; color: #155724; }
+.status-delivered { background: #d4edda; color: #155724; }
+.status-cancelled { background: #f8d7da; color: #721c24; }
+
+.order-link {
+  color: #007bff;
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  display: block;
+}
+
+.order-link:hover {
+  text-decoration: underline;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  text-decoration: none;
+  display: inline-block;
+  transition: background 0.3s;
+}
+
+.btn-primary:hover {
+  background: #0056b3;
+}
+
+.account-info p {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #333;
+  transition: all 0.3s;
+}
+
+.action-btn:hover {
+  background: #f8f9fa;
+  border-color: #007bff;
+}
+
+.action-icon {
+  font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-stats {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  
+  .order-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .spending-insights {
+    grid-template-columns: 1fr;
+  }
+  
+  .wishlist-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .wishlist-actions {
+    flex-direction: column;
+  }
+}
+
+/* Spending Analytics Styles */
+.time-filter {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filter-btn {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.filter-btn.active,
+.filter-btn:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.spending-chart {
+  margin: 1.5rem 0;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.chart-header h4 {
+  margin: 0;
+  color: #333;
+}
+
+.trend-indicator {
+  font-size: 0.9rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+  font-weight: 600;
+}
+
+.trend-indicator.positive {
+  background: #d4edda;
+  color: #155724;
+}
+
+.mini-chart {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 10px;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: end;
+  gap: 0.5rem;
+  height: 120px;
+  margin-bottom: 0.5rem;
+}
+
+.bar {
+  flex: 1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px 4px 0 0;
+  min-height: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.bar:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-around;
+  color: #666;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.spending-insights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.insight-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f8f9ff;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.insight-icon {
+  font-size: 1.5rem;
+}
+
+.insight-text {
+  font-size: 0.9rem;
+}
+
+.insight-text strong {
+  color: #333;
+}
+
+/* Wishlist Visual Enhancements */
+.wishlist-count {
+  background: #667eea;
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.wishlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.wishlist-item-demo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.wishlist-item-demo:hover {
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+.item-image {
+  font-size: 2.5rem;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.item-info h5 {
+  margin: 0 0 0.25rem 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.item-price {
+  margin: 0;
+  color: #667eea;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.remove-wishlist {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: transparent;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.remove-wishlist:hover {
+  opacity: 1;
+}
+
+.wishlist-actions {
+  display: flex;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.btn-wishlist-action {
+  flex: 1;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  padding: 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.btn-wishlist-action:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+/* Order Table Enhancements */
+.order-table-container {
+  overflow-x: auto;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.order-table thead {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.order-table th,
+.order-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.order-table th {
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.order-table tbody tr {
+  transition: background 0.3s ease;
+}
+
+.order-table tbody tr:hover {
+  background: #f8f9ff;
+}
+
+.order-number {
+  font-weight: 600;
+  color: #667eea;
+}
+
+.btn-small {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  text-decoration: none;
+  background: #667eea;
+  color: white;
+  margin-right: 0.5rem;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.btn-small:hover {
+  background: #5a6fd8;
+  transform: translateY(-1px);
+}
+
+.btn-track {
+  background: #28a745;
+}
+
+.btn-track:hover {
+  background: #218838;
+}
+
+/* Profile Section Enhancements */
+.profile-card {
+  text-align: center;
+}
+
+.profile-header {
+  margin-bottom: 1.5rem;
+}
+
+.profile-avatar {
+  margin-bottom: 1rem;
+}
+
+.avatar-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 0 auto;
+}
+
+.profile-info h3 {
+  margin: 0.5rem 0 0.25rem 0;
+  color: #333;
+}
+
+.member-since {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.profile-stats {
+  display: flex;
+  justify-content: space-around;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.profile-stat {
+  text-align: center;
+}
+
+.profile-stat .stat-value {
+  display: block;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.profile-stat .stat-name {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.btn-profile-edit,
+.btn-profile-settings {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.btn-profile-edit {
+  background: #667eea;
+  color: white;
+}
+
+.btn-profile-edit:hover {
+  background: #5a6fd8;
+}
+
+.btn-profile-settings {
+  background: #f8f9fa;
+  color: #333;
+  border: 1px solid #dee2e6;
+}
+
+.btn-profile-settings:hover {
+  background: #e9ecef;
+}
+</style>
+
+<script>
+// Interactive functionality for the enhanced dashboard
+document.addEventListener('DOMContentLoaded', function() {
+  // Profile edit functionality
+  const editBtn = document.querySelector('.btn-profile-edit');
+  const settingsBtn = document.querySelector('.btn-profile-settings');
+  
+  if (editBtn) {
+    editBtn.addEventListener('click', function() {
+      showComingSoon('Profile Edit');
+    });
+  }
+  
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', function() {
+      showComingSoon('Profile Settings');
+    });
+  }
+  
+  // Chart bar hover tooltips
+  const bars = document.querySelectorAll('.bar');
+  bars.forEach(bar => {
+    bar.addEventListener('mouseenter', function() {
+      const title = this.getAttribute('title');
+      if (title) {
+        showTooltip(title, this);
+      }
+    });
+  });
+  
+  // Animate numbers on page load
+  animateNumbers();
+});
+
+// Filter functionality for spending analytics
+function changeFilter(period) {
+  const buttons = document.querySelectorAll('.filter-btn');
+  buttons.forEach(btn => btn.classList.remove('active'));
+  
+  event.target.classList.add('active');
+  
+  // Animate chart data change
+  const bars = document.querySelectorAll('.bar');
+  
+  if (period === 'month') {
+    const monthlyHeights = ['60%', '45%', '80%', '70%', '90%', '95%'];
+    bars.forEach((bar, index) => {
+      if (index < monthlyHeights.length) {
+        bar.style.height = monthlyHeights[index];
+        bar.setAttribute('title', `Month ${index + 1}: Rs ${1200 + (index * 150)}`);
+      }
+    });
+  } else if (period === 'year') {
+    const yearlyHeights = ['40%', '55%', '70%', '85%', '75%', '95%'];
+    bars.forEach((bar, index) => {
+      if (index < yearlyHeights.length) {
+        bar.style.height = yearlyHeights[index];
+        bar.setAttribute('title', `Year ${2021 + index}: Rs ${15000 + (index * 2500)}`);
+      }
+    });
+  }
+  
+  // Update chart labels
+  const labels = document.querySelector('.chart-labels');
+  if (period === 'month') {
+    labels.innerHTML = '<span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span>';
+  } else {
+    labels.innerHTML = '<span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span><span>2026</span>';
+  }
+}
+
+function showComingSoon(feature) {
+  alert(`🎯 ${feature} feature is coming soon!\n\nWe're working hard to bring you amazing new features. Stay tuned for updates!`);
+}
+
+function showTooltip(text, element) {
+  // Simple tooltip implementation
+  const tooltip = document.createElement('div');
+  tooltip.className = 'chart-tooltip';
+  tooltip.innerHTML = text;
+  tooltip.style.cssText = `
+    position: absolute;
+    background: #333;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    z-index: 1000;
+    pointer-events: none;
+  `;
+  
+  document.body.appendChild(tooltip);
+  
+  const rect = element.getBoundingClientRect();
+  tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
+  tooltip.style.top = (rect.top - tooltip.offsetHeight - 10) + 'px';
+  
+  setTimeout(() => {
+    if (tooltip && tooltip.parentNode) {
+      tooltip.parentNode.removeChild(tooltip);
+    }
+  }, 2000);
+}
+
+function animateNumbers() {
+  const numbers = document.querySelectorAll('.stat-number');
+  
+  numbers.forEach(number => {
+    const finalValue = number.textContent;
+    const isPrice = finalValue.includes('Rs');
+    const numberValue = parseFloat(finalValue.replace(/[Rs,]/g, ''));
+    
+    if (!isNaN(numberValue)) {
+      let currentValue = 0;
+      const increment = numberValue / 50;
+      const timer = setInterval(() => {
+        currentValue += increment;
+        if (currentValue >= numberValue) {
+          currentValue = numberValue;
+          clearInterval(timer);
+        }
+        
+        if (isPrice) {
+          number.textContent = `Rs ${currentValue.toFixed(2)}`;
+        } else {
+          number.textContent = Math.floor(currentValue).toString();
+        }
+      }, 30);
+    }
+  });
+}
+
+// Smooth scroll functionality for tracking
+function scrollToTracking(orderId) {
+  const element = document.getElementById(`tracking-${orderId}`);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    element.style.animation = 'highlight 2s ease-in-out';
+  }
+}
+
+// Add highlight animation
+const highlightStyle = document.createElement('style');
+highlightStyle.textContent = `
+  @keyframes highlight {
+    0% { background: #fff3cd; }
+    50% { background: #ffeaa7; }
+    100% { background: #f8f9fa; }
+  }
+`;
+document.head.appendChild(highlightStyle);
+
+// Auto-refresh simulation (in real app would check server for updates)
+setInterval(function() {
+  console.log('🔄 Checking for order updates...');
+  
+  // Simulate real-time updates
+  const statusBadges = document.querySelectorAll('.status-badge');
+  statusBadges.forEach(badge => {
+    if (badge.textContent.includes('Processing')) {
+      // Subtle pulse animation for processing orders
+      badge.style.animation = 'pulse 2s ease-in-out infinite';
+    }
+  });
+}, 30000);
+</script>
 {% endblock %}

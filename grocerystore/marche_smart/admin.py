@@ -1,8 +1,8 @@
 from django.contrib import admin
 from .models import (
     Product, Category, Cart, CartItem,
-    Customers, Employees, Suppliers, SmartProducts, Orders, OrderItems,
-    Payments, Reviews, Inventory, CustomerSupport, DailySales, StoreInfo, AuditLog
+    Customers, Employees, Suppliers, SmartProducts, Order, OrderItem,
+    Payment, Reviews, Inventory, CustomerSupport, DailySales, StoreInfo, AuditLog
 )
 
 
@@ -74,12 +74,12 @@ class SmartProductsAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
 
 
-@admin.register(Orders)
-class OrdersAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer', 'status', 'total_amount', 'order_date')
-    list_filter = ('status', 'order_date')
-    search_fields = ('customer__name', 'customer__email')
-    readonly_fields = ('order_date',)
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('id', 'customer_name', 'status', 'total_amount', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('customer_name', 'customer_email', 'order_number')
+    readonly_fields = ('created_at', 'order_number')
     
     def has_change_permission(self, request, obj=None):
         # Prevent editing completed orders
@@ -88,19 +88,19 @@ class OrdersAdmin(admin.ModelAdmin):
         return True
 
 
-@admin.register(OrderItems)
-class OrderItemsAdmin(admin.ModelAdmin):
-    list_display = ('order', 'product', 'quantity', 'price')
-    search_fields = ('order__customer__name', 'product__name')
+@admin.register(OrderItem)
+class OrderItemAdmin(admin.ModelAdmin):
+    list_display = ('order', 'product_name', 'quantity', 'unit_price')
+    search_fields = ('order__customer_name', 'product_name')
     list_filter = ('order__status',)
 
 
-@admin.register(Payments)
-class PaymentsAdmin(admin.ModelAdmin):
-    list_display = ('order', 'payment_method', 'amount', 'status', 'transaction_date')
-    list_filter = ('payment_method', 'status', 'transaction_date')
-    search_fields = ('order__customer__name',)
-    readonly_fields = ('transaction_date',)
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ('order', 'payment_method', 'amount', 'status', 'created_at')
+    list_filter = ('payment_method', 'status', 'created_at')
+    search_fields = ('order__customer_name', 'transaction_id')
+    readonly_fields = ('created_at', 'processed_at')
 
 
 @admin.register(Reviews)

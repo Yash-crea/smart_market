@@ -14,11 +14,173 @@
   <div style="position: relative; width: 100vw; left: 50%; transform: translateX(-50%); margin-bottom: 2rem; min-height: 340px; display: flex; align-items: center; justify-content: center;">
     
     <div style="position: relative; z-index: 2; width: 100vw; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1rem;">
-      <h1 style="color: white; text-shadow: 0 2px 16px rgba(0,0,0,0.7); font-size: 2.5rem; text-align: center; max-width: 90vw;">le meilleur e-commerce que vous pouvez trouver</h1>
-      <p style="color: white; text-shadow: 0 2px 8px rgba(0,0,0,0.7); font-size: 1.3rem; text-align: center; max-width: 80vw;">Achetez en un clic.</p>
+      <h1 style="color: white; text-shadow: 0 2px 16px rgba(0,0,0,0.7); font-size: 2.5rem; text-align: center; max-width: 90vw;">The Best Grocery Store You Can Find</h1>
+      <p style="color: white; text-shadow: 0 2px 8px rgba(0,0,0,0.7); font-size: 1.3rem; text-align: center; max-width: 80vw;">Shop fresh groceries in one click.</p>
       <a href="{% url 'smart_market:shop' %}" style="margin-top: 2rem; background-color: #2b8a3e; color: #fff; padding: 1rem 2.2rem; border-radius: 2rem; font-size: 1.3rem; text-decoration: none; box-shadow: 0 4px 16px rgba(0,0,0,0.12); font-weight: 600; transition: background 0.2s;">Shop Now</a>
     </div>
   </div>
+
+  <!-- ML-Powered Recommendations Section -->
+  {% if seasonal_recommendations or trending_products or weather_recommendations %}
+  <section class="recommendations-section" style="max-width: 1200px; margin: 0 auto; padding: 3rem 1rem; background: #f8f9fa; border-radius: 1rem; margin-top: 2rem;">
+    
+    <!-- Seasonal Recommendations -->
+    {% if seasonal_recommendations %}
+    <div class="recommendation-category" style="margin-bottom: 3rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h2 style="color: #2b8a3e; font-size: 1.8rem; margin: 0;">
+          🌟 Perfect for {{ season_display }}
+          {% if upcoming_festivals %}
+            • {{ upcoming_festivals.0.display_name }} Special
+          {% elif is_weekend %}
+            • Weekend Favorites
+          {% endif %}
+        </h2>
+        <a href="{% url 'smart_market:shop' %}" style="color: #2b8a3e; text-decoration: none; font-weight: 600;">View All →</a>
+      </div>
+      
+      <div class="products-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        {% for product in seasonal_recommendations %}
+        <div class="product-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: transform 0.2s;">
+          {% if product.image_url %}
+            <img src="{{ product.image_url }}" alt="{{ product.name }}" style="width: 100%; height: 180px; object-fit: cover;">
+          {% else %}
+            <div style="width: 100%; height: 180px; background: #e9ecef; display: flex; align-items: center; justify-content: center; color: #6c757d;">
+              📦 {{ product.name|truncatewords:2 }}
+            </div>
+          {% endif %}
+          
+          <div style="padding: 1.25rem;">
+            <h3 style="margin: 0 0 0.5rem 0; color: #333; font-size: 1.1rem; line-height: 1.3;">{{ product.name|truncatewords:6 }}</h3>
+            {% if product.recommendation_reason %}
+            <p style="margin: 0 0 0.75rem 0; color: #2b8a3e; font-size: 0.9rem; font-weight: 600;">
+              ✨ {{ product.recommendation_reason }}
+            </p>
+            {% endif %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: #2b8a3e; font-weight: bold; font-size: 1.2rem;">Rs {{ product.price|floatformat:2 }}</span>
+              <a href="{% url 'smart_market:shop' %}" style="background: #2b8a3e; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem;">View</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Trending Products -->
+    {% if trending_products %}
+    <div class="recommendation-category" style="margin-bottom: 3rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h2 style="color: #e74c3c; font-size: 1.8rem; margin: 0;">🔥 Trending This Week</h2>
+        <a href="{% url 'smart_market:shop' %}" style="color: #e74c3c; text-decoration: none; font-weight: 600;">View All →</a>
+      </div>
+      
+      <div class="products-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        {% for product in trending_products %}
+        <div class="product-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-left: 4px solid #e74c3c;">
+          {% if product.image_url %}
+            <img src="{{ product.image_url }}" alt="{{ product.name }}" style="width: 100%; height: 180px; object-fit: cover;">
+          {% else %}
+            <div style="width: 100%; height: 180px; background: #e9ecef; display: flex; align-items: center; justify-content: center; color: #6c757d;">
+              📦 {{ product.name|truncatewords:2 }}
+            </div>
+          {% endif %}
+          
+          <div style="padding: 1.25rem;">
+            <h3 style="margin: 0 0 0.5rem 0; color: #333; font-size: 1.1rem;">{{ product.name|truncatewords:6 }}</h3>
+            <p style="margin: 0 0 0.75rem 0; color: #e74c3c; font-size: 0.9rem; font-weight: 600;">
+              🔥 {{ product.recommendation_reason }}
+            </p>
+            {% if product.predicted_demand_7d %}
+              <p style="margin: 0 0 0.75rem 0; color: #6c757d; font-size: 0.85rem;">
+                Demand Score: {{ product.predicted_demand_7d|floatformat:0 }}
+              </p>
+            {% endif %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: #e74c3c; font-weight: bold; font-size: 1.2rem;">Rs {{ product.price|floatformat:2 }}</span>
+              <a href="{% url 'smart_market:shop' %}" style="background: #e74c3c; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem;">View</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Weather-Based Recommendations -->
+    {% if weather_recommendations %}
+    <div class="recommendation-category">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h2 style="color: #3498db; font-size: 1.8rem; margin: 0;">🌤️ Weather Picks</h2>
+        <a href="{% url 'smart_market:shop' %}" style="color: #3498db; text-decoration: none; font-weight: 600;">View All →</a>
+      </div>
+      
+      <div class="products-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        {% for product in weather_recommendations %}
+        <div class="product-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-left: 4px solid #3498db;">
+          {% if product.image_url %}
+            <img src="{{ product.image_url }}" alt="{{ product.name }}" style="width: 100%; height: 180px; object-fit: cover;">
+          {% else %}
+            <div style="width: 100%; height: 180px; background: #e9ecef; display: flex; align-items: center; justify-content: center; color: #6c757d;">
+              📦 {{ product.name|truncatewords:2 }}
+            </div>
+          {% endif %}
+          
+          <div style="padding: 1.25rem;">
+            <h3 style="margin: 0 0 0.5rem 0; color: #333; font-size: 1.1rem;">{{ product.name|truncatewords:6 }}</h3>
+            <p style="margin: 0 0 0.75rem 0; color: #3498db; font-size: 0.9rem; font-weight: 600;">
+              🌤️ {{ product.recommendation_reason }}
+            </p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: #3498db; font-weight: bold; font-size: 1.2rem;">Rs {{ product.price|floatformat:2 }}</span>
+              <a href="{% url 'smart_market:shop' %}" style="background: #3498db; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem;">View</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    
+  </section>
+  {% endif %}
+
+  <!-- Featured Products Section -->
+  {% if products %}
+  <section class="featured-products" style="max-width: 1200px; margin: 3rem auto; padding: 0 1rem;">
+    <h2 style="text-align: center; color: #333; font-size: 2.2rem; margin-bottom: 2rem;">Featured Products</h2>
+    
+    <div class="products-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+      {% for product in products %}
+        <div class="product-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: transform 0.2s;">
+          {% if product.image_url %}
+            <img src="{{ product.image_url }}" alt="{{ product.name }}" style="width: 100%; height: 180px; object-fit: cover;">
+          {% else %}
+            <div style="width: 100%; height: 180px; background: #e9ecef; display: flex; align-items: center; justify-content: center; color: #6c757d;">
+              📦 {{ product.name|truncatewords:2 }}
+            </div>
+          {% endif %}
+          
+          <div style="padding: 1.25rem;">
+            <h3 style="margin: 0 0 0.5rem 0; color: #333; font-size: 1.1rem;">{{ product.name|truncatewords:6 }}</h3>
+            {% if product.category %}
+              <p style="margin: 0 0 0.75rem 0; color: #6c757d; font-size: 0.9rem;">{{ product.category }}</p>
+            {% endif %}
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: #2b8a3e; font-weight: bold; font-size: 1.2rem;">Rs {{ product.price|floatformat:2 }}</span>
+              <a href="{% url 'smart_market:shop' %}" style="background: #2b8a3e; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem;">View</a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    
+    <div style="text-align: center; margin-top: 2.5rem;">
+      <a href="{% url 'smart_market:shop' %}" style="background: #2b8a3e; color: white; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-size: 1.1rem; font-weight: 600;">View All Products</a>
+    </div>
+  </section>
+  {% endif %}
 
 
 
@@ -44,7 +206,7 @@
         <p style="opacity: 0.9; line-height: 1.8; margin-bottom: 0.5rem;">
           <strong>Email:</strong> <a href="mailto:info@marchesmart.com" style="color: white; text-decoration: underline;">info@marchesmart.com</a><br>
           <strong>Support:</strong> <a href="mailto:support@marchesmart.com" style="color: white; text-decoration: underline;">support@marchesmart.com</a><br>
-          <strong>Phone:</strong> <a href="tel:+14605100" style="color: white; text-decoration: none;">+1 (555) 123-4567</a><br>
+          <strong>Phone:</strong> <a href="tel:+23052541234" style="color: white; text-decoration: none;">+230 5254 1234</a><br>
           <strong>WhatsApp:</strong> <a href="{% url 'smart_market:whatsapp' %}" style="color: white; text-decoration: underline;">Chat with us</a><br>
           <strong>Address:</strong> 10th floor, Cyber Tower 1,
 Ebene Cyber City

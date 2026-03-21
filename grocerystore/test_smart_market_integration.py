@@ -14,7 +14,7 @@ django.setup()
 def test_smart_market_integration():
     """Test accessing smart market data through Django models"""
     from marche_smart.models import (
-        Customers, SmartProducts, Orders, Suppliers, 
+        Customers, SmartProducts, Order, Suppliers, 
         Reviews, Inventory, DailySales
     )
     
@@ -34,14 +34,14 @@ def test_smart_market_integration():
         print(f"📦 Products: {product_count}")
         if product_count > 0:
             latest_product = SmartProducts.objects.latest('created_at')
-            print(f"   Latest: {latest_product.name} - ${latest_product.price}")
+            print(f"   Latest: {latest_product.name} - Rs {latest_product.price}")
         
         # Test Orders
-        order_count = Orders.objects.count()
+        order_count = Order.objects.count()
         print(f"🛒 Orders: {order_count}")
         if order_count > 0:
-            latest_order = Orders.objects.latest('order_date')
-            print(f"   Latest: Order #{latest_order.id} - ${latest_order.total_amount}")
+            latest_order = Order.objects.latest('created_at')
+            print(f"   Latest: Order #{latest_order.id} - Rs {latest_order.total_amount}")
         
         # Test Suppliers
         supplier_count = Suppliers.objects.count()
@@ -70,7 +70,7 @@ def test_smart_market_integration():
 
 def show_sample_data():
     """Show sample data from smart market database"""
-    from marche_smart.models import SmartProducts, Customers, Orders
+    from marche_smart.models import SmartProducts, Customers, Order
     
     print("\n" + "=" * 50)
     print("📋 Sample Data from Smart Market")
@@ -81,7 +81,7 @@ def show_sample_data():
         products = SmartProducts.objects.all()[:5]
         print("\n🛍️ Sample Products:")
         for product in products:
-            print(f"  - {product.name}: ${product.price} (Stock: {product.stock_quantity})")
+            print(f"  - {product.name}: Rs {product.price} (Stock: {product.stock_quantity})")
         
         # Show top 5 customers
         customers = Customers.objects.all()[:5]
@@ -90,10 +90,10 @@ def show_sample_data():
             print(f"  - {customer.name} ({customer.email})")
         
         # Show recent orders
-        orders = Orders.objects.all().order_by('-order_date')[:3]
+        orders = Order.objects.all().order_by('-created_at')[:3]
         print("\n📦 Recent Orders:")
         for order in orders:
-            print(f"  - Order #{order.id}: {order.customer.name} - ${order.total_amount}")
+            print(f"  - Order #{order.id}: {order.customer_name} - Rs {order.total_amount}")
             
     except Exception as e:
         print(f"❌ Error showing sample data: {e}")

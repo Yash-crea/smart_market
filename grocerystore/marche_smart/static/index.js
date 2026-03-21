@@ -20,15 +20,30 @@ document.addEventListener('DOMContentLoaded', function(){
 
 	if(searchForm){
 		searchForm.addEventListener('submit', function(e){
-			e.preventDefault();
 			const q = searchInput.value.trim();
 			if(!q) {
+				e.preventDefault();
 				searchInput.focus();
 				return;
 			}
-			// For now, just log search and highlight result area
-			console.log('Search query:', q);
-			alert('Search for: ' + q + '\n(No backend yet - frontend prototype)');
+			// Form will submit normally to shop page with search param
+		});
+	}
+
+	// Hamburger menu toggle for mobile
+	const menuToggle = document.getElementById('menuToggle');
+	const navLinks = document.getElementById('navLinks');
+	if(menuToggle && navLinks){
+		menuToggle.addEventListener('click', function(){
+			const isOpen = navLinks.classList.toggle('open');
+			menuToggle.setAttribute('aria-expanded', String(isOpen));
+		});
+		// Close menu when clicking a link
+		navLinks.querySelectorAll('a').forEach(function(link){
+			link.addEventListener('click', function(){
+				navLinks.classList.remove('open');
+				menuToggle.setAttribute('aria-expanded', 'false');
+			});
 		});
 	}
 

@@ -11,10 +11,47 @@
 
 <section style="padding: 3rem 1rem; max-width: 600px; margin: 0 auto;">
   {% if success %}
-    <div style="background: #d4edda; color: #155724; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #c3e6cb;">
-      <strong>Success!</strong> Your message has been sent. We'll get back to you soon.
+    <div style="background: white; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); overflow: hidden;">
+      <!-- Ticket Header -->
+      <div style="background: linear-gradient(135deg, #2b8a3e 0%, #37b24d 100%); color: white; padding: 1.5rem; text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">&#10004;</div>
+        <h2 style="margin: 0 0 0.3rem; font-size: 1.4rem;">Ticket Submitted Successfully</h2>
+        <p style="margin: 0; opacity: 0.9; font-size: 0.95rem;">Our team will respond within 24 hours</p>
+      </div>
+      <!-- Ticket Details -->
+      <div style="padding: 1.5rem;">
+        <div style="background: #f8f9fa; border: 1px dashed #2b8a3e; border-radius: 8px; padding: 1rem; text-align: center; margin-bottom: 1.2rem;">
+          <p style="margin: 0 0 0.3rem; color: #666; font-size: 0.85rem;">Your Ticket Reference Number</p>
+          <p style="margin: 0; font-size: 1.6rem; font-weight: 800; color: #2b8a3e; letter-spacing: 2px;">{{ ticket_number }}</p>
+        </div>
+        <table style="width: 100%; font-size: 0.95rem; color: #555;">
+          <tr>
+            <td style="padding: 0.5rem 0; font-weight: 600; color: #333;">Name:</td>
+            <td style="padding: 0.5rem 0;">{{ submitted_name }}</td>
+          </tr>
+          <tr>
+            <td style="padding: 0.5rem 0; font-weight: 600; color: #333;">Email:</td>
+            <td style="padding: 0.5rem 0;">{{ submitted_email }}</td>
+          </tr>
+          <tr>
+            <td style="padding: 0.5rem 0; font-weight: 600; color: #333;">Status:</td>
+            <td style="padding: 0.5rem 0;"><span style="background: #fff3cd; color: #856404; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Open - Pending Review</span></td>
+          </tr>
+          <tr>
+            <td style="padding: 0.5rem 0; font-weight: 600; color: #333;">Priority:</td>
+            <td style="padding: 0.5rem 0;"><span style="background: #e8f5e9; color: #2b8a3e; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">Medium</span></td>
+          </tr>
+        </table>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 1rem 0;">
+        <p style="color: #888; font-size: 0.85rem; text-align: center; margin: 0;">A confirmation email has been sent to <strong>{{ submitted_email }}</strong>.<br>Please save your ticket number for future reference.</p>
+      </div>
+      <!-- Actions -->
+      <div style="padding: 0 1.5rem 1.5rem; display: flex; gap: 0.75rem;">
+        <a href="{% url 'smart_market:contact' %}" style="flex: 1; text-align: center; padding: 0.7rem; background: #2b8a3e; color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">Submit Another</a>
+        <a href="{% url 'smart_market:home' %}" style="flex: 1; text-align: center; padding: 0.7rem; background: #f0f0f0; color: #333; border-radius: 8px; text-decoration: none; font-weight: 600;">Back to Home</a>
+      </div>
     </div>
-  {% endif %}
+  {% else %}
 
   {% if error %}
     <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #f5c6cb;">
@@ -32,7 +69,7 @@
         id="username" 
         name="username" 
         required
-        style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s;"
+        style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s; box-sizing: border-box;"
         placeholder="Enter your name"
         onfocus="this.style.borderColor='#2b8a3e'"
         onblur="this.style.borderColor='#ddd'"
@@ -46,7 +83,7 @@
         id="email" 
         name="email" 
         required
-        style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s;"
+        style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s; box-sizing: border-box;"
         placeholder="your.email@example.com"
         onfocus="this.style.borderColor='#2b8a3e'"
         onblur="this.style.borderColor='#ddd'"
@@ -60,7 +97,7 @@
         name="question" 
         rows="6"
         required
-        style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s; resize: vertical;"
+        style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; transition: border-color 0.2s; resize: vertical; box-sizing: border-box;"
         placeholder="How can we help you?"
         onfocus="this.style.borderColor='#2b8a3e'"
         onblur="this.style.borderColor='#ddd'"
@@ -81,9 +118,11 @@
     <p>Or reach us directly at:</p>
     <p style="margin-top: 0.5rem;">
       <strong>Email:</strong> <a href="mailto:info@marchesmart.com" style="color: #2b8a3e; text-decoration: none;">info@marchesmart.com</a><br>
-      <strong>Phone:</strong> <a href="tel:+15551234567" style="color: #2b8a3e; text-decoration: none;">+1 (555) 123-4567</a><br>
-      <strong>WhatsApp:</strong> <a href="https://wa.me/15551234567" style="color: #2b8a3e; text-decoration: none;">Chat with us</a>
+      <strong>Phone:</strong> <a href="tel:+23052541234" style="color: #2b8a3e; text-decoration: none;">+230 5254 1234</a><br>
+      <strong>WhatsApp:</strong> <a href="{% url 'smart_market:whatsapp' %}" style="color: #2b8a3e; text-decoration: none;">Chat with us</a>
     </p>
   </div>
+
+  {% endif %}
 </section>
 {% endblock %}

@@ -1,70 +1,425 @@
 {% extends 'base.html' %}
 {% block content %}
 <section class="dashboard owner-dashboard">
-  <h2>Owner Dashboard</h2>
-  <div style="text-align:right; margin-bottom:1rem;">
-    <a href="{% url 'smart_market:export_dashboard_excel' %}" class="btn primary" style="padding:0.6rem 1.2rem; font-size:1rem;">Export to Excel</a>
-  </div>
-  <div class="dashboard-cards">
-    <div class="card">
-      <h3>Total Sales</h3>
-      <p>${{ sales_total }}</p>
-    </div>
-    <div class="card">
-      <h3>Customers</h3>
-      <p>{{ customer_count }}</p>
-    </div>
-    <div class="card">
-      <h3>Registrations</h3>
-      <p>{{ registrations }}</p>
-    </div>
-    <div class="card">
-      <h3>Orders</h3>
-      <p>{{ orders_count }}</p>
-    </div>
-    <div class="card">
-      <h3>Delivery Tracking</h3>
-      <p>{{ delivery_tracking }}</p>
-    </div>
-    <div class="card">
-      <h3>Payment Transactions</h3>
-      <p>{{ payment_transactions }}</p>
-    </div>
+  <div class="dashboard-header">
+    <h2>Owner Dashboard - {{ owner_name }}</h2>
+    <p class="role-info">Business Management &amp; ML Insights</p>
   </div>
 
-  <div class="dashboard-section">
-    <h3>Top Products</h3>
-    <ul>
-      {% for product in top_products %}
-        <li>{{ product.name }} - ${{ product.price }}</li>
-      {% empty %}
-        <li>No products found.</li>
+  <div class="dashboard-actions">
+    <a href="{% url 'smart_market:owner_inventory' %}" class="btn-action inventory">Manage Inventory</a>
+    <a href="{% url 'smart_market:all_orders' %}" class="btn-action orders">All Orders</a>
+    <a href="{% url 'smart_market:export_dashboard_excel' %}" class="btn-action excel">Export Excel</a>
+    {% if unread_notifications_count > 0 %}
+      <a href="#notifications" class="btn-action notifications">Notifications ({{ unread_notifications_count }})</a>
+    {% endif %}
+  </div>
+
+  {% if error_message %}
+  <div class="alert-warning">{{ error_message }}</div>
+  {% endif %}
+
+  <!-- Notifications Section -->
+  {% if notifications %}
+  <div class="dashboard-section" id="notifications">
+    <div class="section-header">
+      <h3>Recent Notifications</h3>
+      {% if unread_notifications_count > 0 %}
+        <button onclick="markAllNotificationsRead()" class="btn-mark-all">Mark All as Read</button>
+      {% endif %}
+    </div>
+    <div class="notifications-list">
+      {% for notification in notifications %}
+        <div class="notification-item {% if not notification.is_read %}unread{% endif %}">
+          <div class="notification-icon">
+            {% if notification.notification_type == 'new_order' %}&#128722;
+            {% elif notification.notification_type == 'payment_received' %}&#128179;
+            {% elif notification.notification_type == 'low_stock' %}&#9888;
+            {% elif notification.notification_type == 'new_customer' %}&#128100;
+            {% elif notification.notification_type == 'support_ticket' %}&#127915;
+            {% else %}&#128226;{% endif %}
+          </div>
+          <div class="notification-content">
+            <div class="notification-header">
+              <h4>{{ notification.title }}</h4>
+              <span class="notification-time">{{ notification.created_at|timesince }} ago</span>
+            </div>
+            <p>{{ notification.message }}</p>
+            {% if notification.related_order %}
+              <a href="{% url 'smart_market:order_detail' notification.related_order.order_number %}" class="order-link">View Order</a>
+            {% endif %}
+          </div>
+          {% if not notification.is_read %}
+            <button onclick="markNotificationRead({{ notification.id }})" class="btn-mark-read">&#10003;</button>
+          {% endif %}
+        </div>
       {% endfor %}
-    </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ===== Business KPI Cards ===== -->
+  <h3 class="section-title">Business Overview</h3>
+  <div class="dashboard-cards">
+    <div class="card blue">
+      <h3>Total Revenue</h3>
+      <p class="big-number">Rs {{ sales_total|floatformat:0 }}</p>
+    </div>
+    <div class="card green">
+      <h3>Customers</h3>
+      <p class="big-number">{{ customer_count }}</p>
+    </div>
+    <div class="card purple">
+      <h3>Orders</h3>
+      <p class="big-number">{{ orders_count }}</p>
+      <span class="sub-stat">{{ pending_orders }} pending</span>
+    </div>
+    <div class="card teal">
+      <h3>Products</h3>
+      <p class="big-number">{{ total_products }}</p>
+      {% if low_stock_count > 0 %}
+        <span class="sub-stat warning">{{ low_stock_count }} low stock</span>
+      {% endif %}
+    </div>
   </div>
 
+  <!-- ===== ML Insights Cards ===== -->
+  <h3 class="section-title">ML Forecast Insights</h3>
+  <div class="dashboard-cards">
+    <div class="card ml-card">
+      <h3>Active ML Model</h3>
+      {% if best_model %}
+        <p class="big-number">{{ best_model.name|truncatechars:28 }}</p>
+        <span class="sub-stat">Accuracy: {{ best_model.accuracy_score }}%</span>
+      {% else %}
+        <p class="big-number dim">No model trained</p>
+      {% endif %}
+    </div>
+    <div class="card ml-card">
+      <h3>Products Predicted</h3>
+      <p class="big-number">{{ total_predicted }}</p>
+      <span class="sub-stat">of {{ total_products }} total</span>
+    </div>
+    <div class="card ml-card">
+      <h3>Avg Forecast Accuracy</h3>
+      <p class="big-number">{{ avg_forecast_accuracy }}%</p>
+    </div>
+    <div class="card ml-card">
+      <h3>Last Prediction Run</h3>
+      {% if last_forecast_update %}
+        <p class="big-number" style="font-size:1.2rem;">{{ last_forecast_update|timesince }} ago</p>
+      {% else %}
+        <p class="big-number dim">Never</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ===== Top Predicted Demand ===== -->
+  {% if top_demand_products %}
   <div class="dashboard-section">
-    <h3>Inventory Management</h3>
-    <table style="width:100%;border-collapse:collapse;">
+    <h3>Top Predicted Demand (Next 7 Days)</h3>
+    <table class="dashboard-table">
       <thead>
         <tr>
-          <th style="text-align:left; border-bottom:1px solid #eee;">Product</th>
-          <th style="text-align:left; border-bottom:1px solid #eee;">Price</th>
-          <th style="text-align:left; border-bottom:1px solid #eee;">In Stock</th>
+          <th>Product</th>
+          <th>7-Day Demand</th>
+          <th>30-Day Demand</th>
+          <th>Accuracy</th>
+          <th>Stock</th>
         </tr>
       </thead>
       <tbody>
-        {% for product in inventory %}
+        {% for p in top_demand_products %}
         <tr>
-          <td>{{ product.name }}</td>
-          <td>${{ product.price }}</td>
-          <td>{% if product.in_stock %}Yes{% else %}No{% endif %}</td>
+          <td>{{ p.name|truncatechars:40 }}</td>
+          <td><strong>{{ p.predicted_demand_7d }}</strong> units</td>
+          <td>{{ p.predicted_demand_30d }} units</td>
+          <td>{{ p.forecast_accuracy }}%</td>
+          <td class="{% if p.stock_quantity < p.predicted_demand_7d %}text-danger{% else %}text-ok{% endif %}">
+            {{ p.stock_quantity|default_if_none:0 }}
+          </td>
         </tr>
-        {% empty %}
-        <tr><td colspan="3">No products in inventory.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% endif %}
+
+  <!-- ===== Restock Alerts (ML-Driven) ===== -->
+  {% if restock_alerts %}
+  <div class="dashboard-section alert-section">
+    <h3>Restock Alerts (Stock &lt; Predicted Demand)</h3>
+    <table class="dashboard-table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Current Stock</th>
+          <th>Predicted 7-Day Demand</th>
+          <th>Shortfall</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in restock_alerts %}
+        <tr class="alert-row">
+          <td>{{ p.name|truncatechars:40 }}</td>
+          <td>{{ p.stock_quantity|default_if_none:0 }}</td>
+          <td>{{ p.predicted_demand_7d }}</td>
+          <td class="text-danger"><strong>{{ p.shortfall }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- ===== Top Selling Products ===== -->
+  <div class="dashboard-section">
+    <h3>Top Selling Products</h3>
+    <table class="dashboard-table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Qty Sold</th>
+          <th>Revenue</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in top_products %}
+        <tr>
+          <td>{{ item.product_name|truncatechars:40 }}</td>
+          <td>{{ item.total_qty }}</td>
+          <td>Rs {{ item.total_rev|floatformat:0 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3">No sales data yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== Recent Orders ===== -->
+  <div class="dashboard-section">
+    <h3>Recent Orders</h3>
+    <table class="dashboard-table">
+      <thead>
+        <tr>
+          <th>Order #</th>
+          <th>Customer</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in recent_orders %}
+        <tr>
+          <td><a href="{% url 'smart_market:order_detail' order.order_number %}">{{ order.order_number }}</a></td>
+          <td>{{ order.customer_name }}</td>
+          <td>Rs {{ order.total_amount|floatformat:0 }}</td>
+          <td><span class="status-badge status-{{ order.status }}" id="status-{{ order.order_number }}">{{ order.get_status_display }}</span></td>
+          <td>{{ order.created_at|date:"d M Y" }}</td>
+          <td>
+            {% if order.status == 'pending' %}
+              <button class="btn btn-sm btn-success" onclick="changeOrderStatus('{{ order.order_number }}', 'processing')" title="Process">✓</button>
+            {% elif order.status == 'processing' %}
+              <button class="btn btn-sm btn-primary" onclick="changeOrderStatus('{{ order.order_number }}', 'shipped')" title="Ship">📦</button>
+            {% elif order.status == 'shipped' %}
+              <button class="btn btn-sm btn-warning" onclick="changeOrderStatus('{{ order.order_number }}', 'delivered')" title="Deliver">🚚</button>
+            {% endif %}
+            {% if order.status != 'cancelled' and order.status != 'delivered' and order.status != 'refunded' %}
+              <button class="btn btn-sm btn-danger" onclick="changeOrderStatus('{{ order.order_number }}', 'cancelled')" title="Cancel">❌</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No orders yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== Low Stock Products ===== -->
+  {% if low_stock_products %}
+  <div class="dashboard-section">
+    <h3>Low Stock Items</h3>
+    <ul class="low-stock-list">
+      {% for p in low_stock_products %}
+        <li><strong>{{ p.name|truncatechars:35 }}</strong> &mdash; {{ p.stock_quantity|default_if_none:0 }} left</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
 </section>
+
+<style>
+  /* ---- Layout ---- */
+  .owner-dashboard { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+
+  .dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; text-align: center;
+  }
+  .dashboard-header h2 { margin: 0 0 .4rem; font-size: 2.2rem; }
+  .role-info { margin:0; opacity:.9; font-size:1.05rem; }
+
+  .section-title { margin: 2rem 0 .8rem; font-size: 1.3rem; color: #333; }
+
+  .alert-warning {
+    background: #fff3cd; color: #856404; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;
+  }
+
+  /* ---- Action Buttons ---- */
+  .dashboard-actions { display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+  .btn-action {
+    padding:.8rem 1.3rem; text-decoration:none; border-radius:6px; font-weight:600; color:#fff;
+    transition: all .25s ease; display:inline-block; font-size:.95rem;
+  }
+  .btn-action.inventory { background:#28a745; }
+  .btn-action.inventory:hover { background:#218838; }
+  .btn-action.orders { background:#007bff; }
+  .btn-action.orders:hover { background:#0069d9; }
+  .btn-action.excel { background:#17a2b8; }
+  .btn-action.excel:hover { background:#138496; }
+  .btn-action.notifications { background:#dc3545; }
+  .btn-action.notifications:hover { background:#c82333; }
+
+  /* ---- Cards ---- */
+  .dashboard-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:1rem; margin-bottom:1.5rem; }
+  .card {
+    background:#fff; border-radius:8px; padding:1.2rem; box-shadow:0 2px 8px rgba(0,0,0,.07);
+    border-top:4px solid #ccc; text-align:center;
+  }
+  .card h3 { margin:0 0 .4rem; font-size:.95rem; color:#555; text-transform:uppercase; letter-spacing:.5px; }
+  .big-number { font-size:1.8rem; font-weight:700; margin:.3rem 0; color:#222; }
+  .big-number.dim { color:#aaa; font-size:1.2rem; }
+  .sub-stat { display:block; font-size:.82rem; color:#777; }
+  .sub-stat.warning { color:#dc3545; font-weight:600; }
+
+  .card.blue   { border-top-color:#007bff; }
+  .card.green  { border-top-color:#28a745; }
+  .card.purple { border-top-color:#764ba2; }
+  .card.teal   { border-top-color:#17a2b8; }
+  .card.ml-card { border-top-color:#ff6f00; background:linear-gradient(180deg,#fffbf0 0%,#fff 60%); }
+
+  /* ---- Tables ---- */
+  .dashboard-table { width:100%; border-collapse:collapse; margin-top:.5rem; }
+  .dashboard-table th { text-align:left; padding:.6rem; font-size:.85rem; color:#555; border-bottom:2px solid #eee; text-transform:uppercase; }
+  .dashboard-table td { padding:.6rem; border-bottom:1px solid #f2f2f2; font-size:.92rem; }
+  .dashboard-table tr:hover { background:#f8f9ff; }
+  .text-danger { color:#dc3545; font-weight:600; }
+  .text-ok { color:#28a745; }
+
+  .alert-section { background:#fff5f5; border:1px solid #f8d7da; border-radius:8px; padding:1rem; }
+  .alert-row { background:#fff0f0; }
+
+  /* ---- Status Badges ---- */
+  .status-badge {
+    padding:.25rem .6rem; border-radius:12px; font-size:.8rem; font-weight:600;
+  }
+  .status-pending    { background:#fff3cd; color:#856404; }
+  .status-processing { background:#cce5ff; color:#004085; }
+  .status-shipped    { background:#d4edda; color:#155724; }
+  .status-delivered  { background:#d1e7dd; color:#0f5132; }
+  .status-cancelled  { background:#f8d7da; color:#842029; }
+  .status-refunded   { background:#e2e3e5; color:#41464b; }
+
+  /* ---- Misc ---- */
+  .low-stock-list { list-style:none; padding:0; }
+  .low-stock-list li { padding:.5rem 0; border-bottom:1px solid #f0f0f0; }
+
+  /* ---- Notifications ---- */
+  .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+  .btn-mark-all { background:#007bff; color:#fff; border:none; padding:.5rem 1rem; border-radius:4px; cursor:pointer; font-size:.9rem; }
+  .btn-mark-all:hover { background:#0056b3; }
+  .notifications-list { max-height:400px; overflow-y:auto; }
+  .notification-item { display:flex; align-items:flex-start; gap:1rem; padding:1rem; border:1px solid #eee; border-radius:8px; margin-bottom:.5rem; background:#fff; }
+  .notification-item.unread { background:#f8f9ff; border-left:4px solid #007bff; }
+  .notification-icon { font-size:1.5rem; margin-top:.25rem; }
+  .notification-content { flex:1; }
+  .notification-content .notification-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.5rem; }
+  .notification-content .notification-header h4 { margin:0; color:#333; font-size:1rem; }
+  .notification-time { color:#666; font-size:.8rem; }
+  .notification-content p { margin:0 0 .5rem; color:#555; font-size:.9rem; }
+  .order-link { color:#007bff; text-decoration:none; font-size:.9rem; }
+  .order-link:hover { text-decoration:underline; }
+  .btn-mark-read { background:#28a745; color:#fff; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center; }
+  .btn-mark-read:hover { background:#218838; }
+
+  @media (max-width:768px) {
+    .dashboard-cards { grid-template-columns:1fr 1fr; }
+    .dashboard-actions { flex-direction:column; }
+  }
+</style>
+
+<script>
+function markNotificationRead(notificationId) {
+  fetch(`{% url 'smart_market:mark_notification_read' 0 %}`.replace('0', notificationId), {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      document.querySelector(`[onclick="markNotificationRead(${notificationId})"]`).closest('.notification-item').classList.remove('unread');
+      document.querySelector(`[onclick="markNotificationRead(${notificationId})"]`).style.display = 'none';
+      updateNotificationCount();
+    }
+  });
+}
+
+function markAllNotificationsRead() {
+  fetch('{% url "smart_market:mark_all_notifications_read" %}', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      document.querySelectorAll('.notification-item.unread').forEach(item => item.classList.remove('unread'));
+      document.querySelectorAll('.btn-mark-read').forEach(btn => btn.style.display = 'none');
+      const markAllBtn = document.querySelector('.btn-mark-all');
+      if (markAllBtn) markAllBtn.style.display = 'none';
+      updateNotificationCount();
+    }
+  });
+}
+
+function updateNotificationCount() {
+  const unreadCount = document.querySelectorAll('.notification-item.unread').length;
+  const notificationBtn = document.querySelector('.btn-action.notifications');
+  if (unreadCount === 0 && notificationBtn) notificationBtn.style.display = 'none';
+}
+
+function changeOrderStatus(orderNumber, newStatus) {
+  if (confirm(`Change order ${orderNumber} status to "${newStatus}"?`)) {
+    fetch(`/owner/orders/${orderNumber}/status/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      },
+      body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        location.reload();
+      } else {
+        alert('Error: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(err => alert('Network error: ' + err));
+  }
+}
+</script>
+
+{% csrf_token %}
 {% endblock %}

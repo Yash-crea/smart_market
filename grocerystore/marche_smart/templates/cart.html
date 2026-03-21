@@ -2,487 +2,1114 @@
 {% load static %}
 
 {% block content %}
-<section class="cart-container">
-  <h1>Shopping Cart</h1>
+<section class="cart-page">
+  <div class="cart-backdrop"></div>
+  <div class="cart-shell">
+    {% if messages %}
+      <div class="cart-messages" aria-live="polite">
+        {% for message in messages %}
+          <div class="cart-alert cart-alert-{{ message.tags|default:'info' }}">
+            <i class="fas fa-circle-info"></i>
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
 
-  {% if cart_items %}
-    <div class="cart-layout">
-      <!-- Cart Items -->
-      <div class="cart-items">
-        <table class="cart-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Price</th>
-              <th>Quantity</th>
-              <th>Total</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for product_id, item in cart_items.items %}
-              <tr class="cart-item">
-                <td class="product-info">
-                  {% if item.image_url %}
-                    <img src="{{ item.image_url }}" alt="{{ item.name }}" class="item-image">
-                  {% else %}
-                    <div class="item-image placeholder">No Image</div>
-                  {% endif %}
-                  <span class="product-name">{{ item.name }}</span>
-                </td>
-                <td class="price">${{ item.price }}</td>
-                <td class="quantity">
-                  <form method="post" action="{% url 'smart_market:update_cart' product_id %}" class="quantity-form">
-                    {% csrf_token %}
-                    <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="99">
-                    <button type="submit" class="btn-update">Update</button>
-                  </form>
-                </td>
-                <td class="total">${{ item.price|floatformat:2|floatformat:2|add:"0" }}</td>
-                <td class="actions">
-                  <a href="{% url 'smart_market:remove_from_cart' product_id %}" class="btn-remove">Remove</a>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    <header class="cart-hero">
+      <div class="cart-hero-copy">
+        <span class="cart-eyebrow">Smart Market cart</span>
+        <h1>Review your basket before checkout</h1>
+        <p>
+          Keep quantities accurate, remove anything you do not need, and move straight into the existing checkout flow.
+        </p>
       </div>
 
-      <!-- Cart Summary -->
-      <aside class="cart-summary">
-        <div class="summary-card">
-          <h2>Order Summary</h2>
-          
-          <div class="summary-row">
-            <span>Subtotal:</span>
-            <span>${{ subtotal }}</span>
-          </div>
-          
-          <div class="summary-row">
-            <span>Tax (10%):</span>
-            <span>${{ tax }}</span>
-          </div>
-          
-          <div class="summary-row total">
-            <span>Total:</span>
-            <span>${{ total }}</span>
-          </div>
-          
-          <!-- Payment Form -->
-          <form class="payment-form" method="post" action="#">
-            <h3 style="margin-top:1.5rem;">Payment Details</h3>
-            <div class="card-options">
-              <label>
-                <input type="radio" name="card_type" value="visa" checked>
-                <img src="{% static 'images/visa.svg' %}" alt="Visa" class="card-icon"> Visa
-              </label>
-              <label>
-                <input type="radio" name="card_type" value="mastercard">
-                <img src="{% static 'images/mastercard.svg' %}" alt="Mastercard" class="card-icon"> Mastercard
-              </label>
+      <div class="cart-hero-panel">
+        <div class="cart-stat">
+          <span class="cart-stat-label">Items</span>
+          <strong>{{ item_count }}</strong>
+        </div>
+        <div class="cart-stat">
+          <span class="cart-stat-label">Subtotal</span>
+          <strong class="js-summary-subtotal">Rs {{ subtotal|floatformat:2 }}</strong>
+        </div>
+        <div class="cart-stat cart-stat-highlight">
+          <span class="cart-stat-label">Estimated total</span>
+          <strong class="js-summary-total">Rs {{ total|floatformat:2 }}</strong>
+        </div>
+        {% if cart_items %}
+          <button type="button" class="cart-clear-trigger" onclick="openClearCartModal()">
+            <i class="fas fa-trash"></i>
+            <span>Clear cart</span>
+          </button>
+        {% endif %}
+      </div>
+    </header>
+
+    {% if cart_items %}
+      <div class="cart-layout">
+        <div class="cart-main">
+          {% if guest_message %}
+            <div class="cart-inline-note">
+              <i class="fas fa-user-lock"></i>
+              <span>{{ guest_message }}</span>
             </div>
-            <div class="form-group">
-              <input type="text" name="card_number" class="input" placeholder="Card Number" maxlength="19" required>
-            </div>
-            <div class="form-row">
-              <input type="text" name="expiry" class="input" placeholder="MM/YY" maxlength="5" required>
-              <input type="text" name="cvv" class="input" placeholder="CVV" maxlength="4" required>
-            </div>
-            <button type="submit" class="btn-checkout" style="margin-top:1rem;">Pay Now</button>
-          </form>
-          <a href="{% url 'smart_market:shop' %}" class="btn-continue-shopping">Continue Shopping</a>
+          {% endif %}
+
+          <div class="cart-items">
+            {% for item in cart_items %}
+              <article class="cart-item" data-price="{{ item.unit_price }}">
+                <div class="cart-item-media">
+                  {% if item.product %}
+                    {% if item.product.image_url %}
+                      <img src="{{ item.product.image_url }}" alt="{{ item.product.name }}" loading="lazy">
+                    {% else %}
+                      <div class="cart-image-fallback"><i class="fas fa-bag-shopping"></i></div>
+                    {% endif %}
+                  {% elif item.smart_product %}
+                    {% if item.smart_product.image_url %}
+                      <img src="{{ item.smart_product.image_url }}" alt="{{ item.smart_product.name }}" loading="lazy">
+                    {% else %}
+                      <div class="cart-image-fallback"><i class="fas fa-bag-shopping"></i></div>
+                    {% endif %}
+                  {% endif %}
+                </div>
+
+                <div class="cart-item-content">
+                  <div class="cart-item-head">
+                    <div>
+                      <p class="cart-item-kicker">
+                        {% if item.product_type == 'smart' %}
+                          Smart product
+                        {% else %}
+                          Store product
+                        {% endif %}
+                      </p>
+                      <h2>{{ item.product.name|default:item.smart_product.name|default:item.product_name }}</h2>
+                    </div>
+                    <button
+                      type="button"
+                      class="cart-remove-trigger"
+                      onclick="openRemoveModal(this, '{{ item.product.name|default:item.smart_product.name|default:item.product_name|escapejs }}')"
+                      aria-label="Remove {{ item.product.name|default:item.smart_product.name|default:item.product_name }}"
+                    >
+                      <i class="fas fa-xmark"></i>
+                    </button>
+                  </div>
+
+                  <div class="cart-item-meta">
+                    <span class="cart-pill">Unit price: Rs {{ item.unit_price|floatformat:2 }}</span>
+                    <span class="cart-pill">VAT added at checkout summary</span>
+                    <span class="cart-pill">Shipping: Rs 50.00</span>
+                  </div>
+
+                  <div class="cart-item-actions">
+                    <form
+                      method="post"
+                      action="{% url 'smart_market:update_cart' item.product.id|default:item.smart_product.id %}"
+                      class="cart-qty-form"
+                    >
+                      {% csrf_token %}
+                      <input type="hidden" name="product_type" value="{{ item.product_type }}">
+                      <label class="cart-qty-label" for="qty-{{ forloop.counter }}">Quantity</label>
+                      <div class="cart-qty-control">
+                        <button type="button" class="cart-qty-btn" onclick="changeQuantity(this, -1)" aria-label="Decrease quantity">
+                          <i class="fas fa-minus"></i>
+                        </button>
+                        <input
+                          id="qty-{{ forloop.counter }}"
+                          type="number"
+                          name="quantity"
+                          value="{{ item.quantity }}"
+                          min="1"
+                          max="99"
+                          class="cart-qty-input"
+                          onchange="updatePreview(this)"
+                        >
+                        <button type="button" class="cart-qty-btn" onclick="changeQuantity(this, 1)" aria-label="Increase quantity">
+                          <i class="fas fa-plus"></i>
+                        </button>
+                      </div>
+                      <button type="submit" class="cart-update-btn">Update</button>
+                    </form>
+
+                    <div class="cart-line-total">
+                      <span>Line total</span>
+                      <strong>Rs <span class="js-item-total">{{ item.subtotal|floatformat:2 }}</span></strong>
+                    </div>
+                  </div>
+                </div>
+
+                <form
+                  method="post"
+                  action="{% url 'smart_market:remove_from_cart' item.product.id|default:item.smart_product.id %}"
+                  class="cart-remove-form"
+                >
+                  {% csrf_token %}
+                  <input type="hidden" name="type" value="{{ item.product_type }}">
+                </form>
+              </article>
+            {% endfor %}
+          </div>
         </div>
 
-        <div class="summary-card info">
-          <h3>Order Info</h3>
-          <p><strong>Items:</strong> {{ item_count }}</p>
-          <p class="note">Free shipping on orders over $100!</p>
+        <aside class="cart-sidebar">
+          <div class="cart-summary-card">
+            <div class="cart-summary-head">
+              <span class="cart-eyebrow">Order summary</span>
+              <h2>Checkout ready</h2>
+            </div>
+
+            <div class="cart-summary-lines">
+              <div class="cart-summary-line">
+                <span>Subtotal</span>
+                <strong class="js-summary-subtotal">Rs {{ subtotal|floatformat:2 }}</strong>
+              </div>
+              <div class="cart-summary-line">
+                <span>VAT (15%)</span>
+                <strong class="js-summary-tax">Rs {{ tax_amount|floatformat:2 }}</strong>
+              </div>
+              <div class="cart-summary-line">
+                <span>Shipping</span>
+                <strong class="js-summary-shipping">Rs {{ shipping_cost|floatformat:2 }}</strong>
+              </div>
+            </div>
+
+            <div class="cart-summary-total">
+              <span>Total payable</span>
+              <strong class="js-summary-total">Rs {{ total|floatformat:2 }}</strong>
+            </div>
+
+            {% if is_guest %}
+              <form method="get" action="{% url 'smart_market:unified_login' %}" class="cart-order-form js-order-form">
+                <input type="hidden" name="next" value="{% url 'smart_market:checkout' %}">
+                <button type="submit" class="cart-order-btn cart-order-btn-primary js-order-btn">
+                  <i class="fas fa-lock"></i>
+                  <span>Sign in to place order</span>
+                </button>
+              </form>
+              <a href="{% url 'smart_market:customer_signup' %}" class="cart-order-btn cart-order-btn-secondary">
+                <i class="fas fa-user-plus"></i>
+                <span>Create account</span>
+              </a>
+            {% else %}
+              <form method="get" action="{% url 'smart_market:checkout' %}" class="cart-order-form js-order-form">
+                <button type="submit" class="cart-order-btn cart-order-btn-primary js-order-btn">
+                  <i class="fas fa-credit-card"></i>
+                  <span>Place order</span>
+                </button>
+              </form>
+            {% endif %}
+
+            <a href="{% url 'smart_market:shop' %}" class="cart-order-btn cart-order-btn-ghost">
+              <i class="fas fa-arrow-left"></i>
+              <span>Continue shopping</span>
+            </a>
+          </div>
+
+          <div class="cart-support-card">
+            <div class="cart-support-item">
+              <i class="fas fa-shield-heart"></i>
+              <div>
+                <strong>Protected checkout</strong>
+                <p>Your existing checkout and payment processing remain unchanged.</p>
+              </div>
+            </div>
+            <div class="cart-support-item">
+              <i class="fas fa-truck-fast"></i>
+              <div>
+                <strong>Fast dispatch</strong>
+                <p>Standard delivery is calculated at Rs 50.00 inside the current order flow.</p>
+              </div>
+            </div>
+            <div class="cart-support-item">
+              <i class="fas fa-receipt"></i>
+              <div>
+                <strong>Clear totals</strong>
+                <p>The summary updates live when you change quantities before saving them.</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    {% else %}
+      <div class="cart-empty-state">
+        <div class="cart-empty-art">
+          <i class="fas fa-basket-shopping"></i>
         </div>
-      </aside>
-    </div>
-  {% else %}
-    <div class="empty-cart">
-      <svg viewBox="0 0 24 24" width="80" height="80">
-        <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" fill="#ccc"/>
-      </svg>
-      <h2>Your cart is empty</h2>
-      <p>Add some products to get started!</p>
-      <a href="{% url 'smart_market:shop' %}" class="btn-primary">Go to Shop</a>
-    </div>
-  {% endif %}
+        <span class="cart-eyebrow">No items yet</span>
+        <h2>Your cart is empty</h2>
+        <p>Add products from the shop to start building an order.</p>
+        <a href="{% url 'smart_market:shop' %}" class="cart-order-btn cart-order-btn-primary cart-empty-btn">
+          <i class="fas fa-store"></i>
+          <span>Browse products</span>
+        </a>
+      </div>
+    {% endif %}
+  </div>
 </section>
 
+<div id="cartRemoveModal" class="cart-modal" aria-hidden="true">
+  <div class="cart-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="cart-remove-title">
+    <div class="cart-modal-icon">
+      <i class="fas fa-trash"></i>
+    </div>
+    <h3 id="cart-remove-title">Remove item?</h3>
+    <p>Remove <span id="cartRemoveItemName"></span> from your cart.</p>
+    <div class="cart-modal-actions">
+      <button type="button" class="cart-order-btn cart-order-btn-secondary" onclick="closeRemoveModal()">Keep item</button>
+      <button type="button" class="cart-order-btn cart-order-btn-danger" onclick="submitPendingRemove()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<div id="cartClearModal" class="cart-modal" aria-hidden="true">
+  <div class="cart-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="cart-clear-title">
+    <div class="cart-modal-icon cart-modal-icon-warning">
+      <i class="fas fa-triangle-exclamation"></i>
+    </div>
+    <h3 id="cart-clear-title">Clear the full cart?</h3>
+    <p>This uses the current clear-cart route and removes every line item.</p>
+    <div class="cart-modal-actions">
+      <button type="button" class="cart-order-btn cart-order-btn-secondary" onclick="closeClearCartModal()">Cancel</button>
+      <a href="{% url 'smart_market:clear_cart' %}" class="cart-order-btn cart-order-btn-danger">Clear cart</a>
+    </div>
+  </div>
+</div>
+
 <style>
-  .cart-container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 0 1rem;
+  .cart-page {
+    --cart-ink: #1f2430;
+    --cart-muted: #64748b;
+    --cart-line: rgba(31, 36, 48, 0.1);
+    --cart-surface: rgba(255, 255, 255, 0.9);
+    --cart-surface-strong: #ffffff;
+    --cart-accent: #c96d31;
+    --cart-accent-dark: #a6531f;
+    --cart-accent-soft: rgba(201, 109, 49, 0.14);
+    --cart-success: #2e7d57;
+    --cart-danger: #c54438;
+    position: relative;
+    overflow: hidden;
+    padding: 2rem 1rem 4rem;
+    color: var(--cart-ink);
   }
 
-  .cart-container h1 {
-    margin-bottom: 2rem;
-    font-size: 2.5rem;
-    color: #333;
+  .cart-backdrop {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at top left, rgba(201, 109, 49, 0.18), transparent 28%),
+      radial-gradient(circle at top right, rgba(46, 125, 87, 0.12), transparent 22%),
+      linear-gradient(180deg, #fffaf4 0%, #f7f5ef 100%);
+    pointer-events: none;
+  }
+
+  .cart-shell {
+    position: relative;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+
+  .cart-messages {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .cart-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.95rem 1rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--cart-line);
+    backdrop-filter: blur(10px);
+  }
+
+  .cart-alert-success {
+    color: var(--cart-success);
+  }
+
+  .cart-alert-error,
+  .cart-alert-danger {
+    color: var(--cart-danger);
+  }
+
+  .cart-alert-info,
+  .cart-alert-warning {
+    color: var(--cart-accent-dark);
+  }
+
+  .cart-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
+    gap: 1.5rem;
+    align-items: stretch;
+    margin-bottom: 1.75rem;
+  }
+
+  .cart-hero-copy,
+  .cart-hero-panel,
+  .cart-summary-card,
+  .cart-support-card,
+  .cart-item,
+  .cart-empty-state {
+    background: var(--cart-surface);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 18px 60px rgba(31, 36, 48, 0.08);
+    border-radius: 28px;
+  }
+
+  .cart-hero-copy {
+    padding: 2rem;
+  }
+
+  .cart-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--cart-accent-dark);
+    margin-bottom: 0.9rem;
+  }
+
+  .cart-hero-copy h1,
+  .cart-empty-state h2,
+  .cart-summary-head h2,
+  .cart-item-head h2 {
+    margin: 0;
+    font-family: Georgia, 'Times New Roman', serif;
+    letter-spacing: -0.03em;
+  }
+
+  .cart-hero-copy h1 {
+    font-size: clamp(2rem, 4vw, 3.3rem);
+    line-height: 1;
+    max-width: 12ch;
+  }
+
+  .cart-hero-copy p {
+    margin: 1rem 0 0;
+    max-width: 54ch;
+    color: var(--cart-muted);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .cart-hero-panel {
+    display: grid;
+    gap: 0.9rem;
+    padding: 1.5rem;
+    align-content: start;
+  }
+
+  .cart-stat {
+    padding: 1rem 1.1rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--cart-line);
+  }
+
+  .cart-stat-label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--cart-muted);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .cart-stat strong {
+    font-size: 1.25rem;
+  }
+
+  .cart-stat-highlight {
+    background: linear-gradient(135deg, rgba(201, 109, 49, 0.16), rgba(46, 125, 87, 0.16));
+  }
+
+  .cart-clear-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 52px;
+    padding: 0.95rem 1rem;
+    border: 1px solid rgba(197, 68, 56, 0.2);
+    border-radius: 18px;
+    background: rgba(197, 68, 56, 0.08);
+    color: var(--cart-danger);
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+
+  .cart-clear-trigger:hover {
+    transform: translateY(-1px);
+    background: rgba(197, 68, 56, 0.14);
   }
 
   .cart-layout {
     display: grid;
-    grid-template-columns: 1fr 350px;
-    gap: 2rem;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 1.5rem;
+    align-items: start;
   }
 
-  /* Cart Items Table */
-  .cart-items {
-    background: white;
-    border: 1px solid #eee;
-    border-radius: 8px;
-    overflow: hidden;
+  .cart-main {
+    display: grid;
+    gap: 1rem;
   }
 
-  .cart-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  .cart-table thead {
-    background: #f8f9fa;
-    border-bottom: 2px solid #eee;
-  }
-
-  .cart-table th {
-    padding: 1rem;
-    text-align: left;
-    font-weight: 600;
-    color: #333;
-  }
-
-  .cart-table tbody tr {
-    border-bottom: 1px solid #eee;
-  }
-
-  .cart-table tbody tr:last-child {
-    border-bottom: none;
-  }
-
-  .cart-table td {
-    padding: 1.5rem 1rem;
-    vertical-align: middle;
-  }
-
-  .product-info {
+  .cart-inline-note {
     display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    border: 1px solid rgba(201, 109, 49, 0.2);
+    background: rgba(201, 109, 49, 0.08);
+    color: var(--cart-accent-dark);
+    font-weight: 600;
+  }
+
+  .cart-items {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .cart-item {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 1.2rem;
+    padding: 1.3rem;
+  }
+
+  .cart-item-media {
+    width: 132px;
+    height: 132px;
+    overflow: hidden;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #fff0e6, #eef5ee);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cart-item-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .cart-image-fallback {
+    font-size: 2.2rem;
+    color: rgba(31, 36, 48, 0.35);
+  }
+
+  .cart-item-content {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .cart-item-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .cart-item-kicker {
+    margin: 0 0 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--cart-muted);
+  }
+
+  .cart-item-head h2 {
+    font-size: 1.55rem;
+    line-height: 1.05;
+  }
+
+  .cart-remove-trigger {
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(197, 68, 56, 0.1);
+    color: var(--cart-danger);
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+
+  .cart-remove-trigger:hover {
+    transform: scale(1.05);
+    background: rgba(197, 68, 56, 0.18);
+  }
+
+  .cart-item-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .cart-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.76);
+    border: 1px solid var(--cart-line);
+    color: var(--cart-muted);
+    font-size: 0.84rem;
+  }
+
+  .cart-item-actions {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(180px, 220px);
+    gap: 1rem;
+    align-items: end;
+  }
+
+  .cart-qty-form {
+    display: grid;
+    gap: 0.65rem;
+    justify-content: start;
+  }
+
+  .cart-qty-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--cart-muted);
+  }
+
+  .cart-qty-control {
+    display: inline-grid;
+    grid-template-columns: 44px 74px 44px;
+    align-items: center;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid var(--cart-line);
+    background: var(--cart-surface-strong);
+  }
+
+  .cart-qty-btn,
+  .cart-qty-input,
+  .cart-update-btn {
+    font: inherit;
+  }
+
+  .cart-qty-btn {
+    width: 44px;
+    height: 48px;
+    border: none;
+    background: transparent;
+    color: var(--cart-ink);
+    cursor: pointer;
+  }
+
+  .cart-qty-input {
+    width: 100%;
+    height: 48px;
+    border: none;
+    border-left: 1px solid var(--cart-line);
+    border-right: 1px solid var(--cart-line);
+    background: transparent;
+    text-align: center;
+    font-weight: 700;
+    color: var(--cart-ink);
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .cart-qty-input::-webkit-outer-spin-button,
+  .cart-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .cart-update-btn {
+    min-height: 44px;
+    padding: 0.8rem 1rem;
+    border: none;
+    border-radius: 16px;
+    background: var(--cart-accent-soft);
+    color: var(--cart-accent-dark);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .cart-line-total {
+    display: grid;
+    gap: 0.25rem;
+    padding: 1rem;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(46, 125, 87, 0.12), rgba(46, 125, 87, 0.04));
+    text-align: right;
+  }
+
+  .cart-line-total span {
+    color: var(--cart-muted);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .cart-line-total strong {
+    font-size: 1.25rem;
+    color: var(--cart-success);
+  }
+
+  .cart-remove-form {
+    display: none;
+  }
+
+  .cart-sidebar {
+    position: sticky;
+    top: 90px;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .cart-summary-card,
+  .cart-support-card {
+    padding: 1.4rem;
+  }
+
+  .cart-summary-head h2 {
+    font-size: 1.7rem;
+    margin-top: 0.15rem;
+  }
+
+  .cart-summary-lines {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1.2rem 0;
+    border-top: 1px solid var(--cart-line);
+    border-bottom: 1px solid var(--cart-line);
+    margin-top: 1rem;
+  }
+
+  .cart-summary-line,
+  .cart-summary-total {
+    display: flex;
+    justify-content: space-between;
     gap: 1rem;
     align-items: center;
   }
 
-  .item-image {
-    width: 60px;
-    height: 60px;
-    object-fit: cover;
-    border-radius: 4px;
+  .cart-summary-line {
+    color: var(--cart-muted);
   }
 
-  .item-image.placeholder {
-    width: 60px;
-    height: 60px;
-    background: #f0f0f0;
-    border-radius: 4px;
+  .cart-summary-total {
+    margin: 1.2rem 0 1.35rem;
+    font-size: 1.08rem;
+  }
+
+  .cart-summary-total strong {
+    font-size: 1.55rem;
+  }
+
+  .cart-order-form {
+    margin: 0;
+  }
+
+  .cart-order-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
-    color: #999;
+    gap: 0.65rem;
+    width: 100%;
+    min-height: 54px;
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
+    text-decoration: none;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    margin-bottom: 0.8rem;
   }
 
-  .product-name {
-    font-weight: 500;
-    color: #333;
+  .cart-order-btn:hover {
+    transform: translateY(-1px);
   }
 
-  .price {
-    color: #4CAF50;
-    font-weight: 600;
+  .cart-order-btn-primary {
+    background: linear-gradient(135deg, var(--cart-accent), #e18b4f);
+    color: #fff;
+    box-shadow: 0 14px 30px rgba(201, 109, 49, 0.25);
   }
 
-  .quantity {
-    min-width: 200px;
+  .cart-order-btn-secondary {
+    background: rgba(255, 255, 255, 0.78);
+    color: var(--cart-ink);
+    border: 1px solid var(--cart-line);
   }
 
-  .quantity-form {
-    display: flex;
-    gap: 0.5rem;
+  .cart-order-btn-ghost {
+    background: transparent;
+    color: var(--cart-muted);
+    border: 1px dashed rgba(31, 36, 48, 0.18);
+  }
+
+  .cart-order-btn-danger {
+    background: var(--cart-danger);
+    color: #fff;
+  }
+
+  .cart-order-btn.is-submitting {
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .cart-support-card {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .cart-support-item {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 0.85rem;
+    align-items: start;
+  }
+
+  .cart-support-item i {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: rgba(46, 125, 87, 0.1);
+    color: var(--cart-success);
   }
 
-  .quantity-form input {
-    width: 60px;
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 0.9rem;
-  }
-
-  .btn-update {
-    padding: 0.5rem 0.75rem;
-    background: #2196F3;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  .btn-update:hover {
-    background: #0b7dda;
-  }
-
-  .total {
-    font-weight: 600;
-    color: #333;
-  }
-
-  .actions {
-    text-align: center;
-  }
-
-  .btn-remove {
-    padding: 0.5rem 1rem;
-    background: #f44336;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 600;
-    display: inline-block;
-  }
-
-  .btn-remove:hover {
-    background: #d32f2f;
-  }
-
-  /* Cart Summary */
-  .cart-summary {
-    position: sticky;
-    top: 100px;
-    height: fit-content;
-  }
-
-  .summary-card {
-    background: white;
-    border: 1px solid #eee;
-    border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  }
-
-  .summary-card h2 {
-    margin: 0 0 1.5rem 0;
-    font-size: 1.3rem;
-    color: #333;
-  }
-
-  .summary-card h3 {
-    margin: 0 0 1rem 0;
-    font-size: 1rem;
-    color: #333;
-  }
-
-  .summary-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 0.95rem;
-  }
-
-  .summary-row:last-child {
-    border-bottom: none;
-  }
-
-  .summary-row.total {
-    font-weight: 600;
-    font-size: 1.1rem;
-    color: #333;
-    padding-top: 1rem;
-    margin-top: 1rem;
-    border-top: 2px solid #eee;
-  }
-
-  .btn-checkout {
-    width: 100%;
-    padding: 1rem;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    margin-bottom: 0.5rem;
-    transition: background 0.3s ease;
-  }
-
-  .btn-checkout:hover {
-    background: #45a049;
-  }
-
-  .btn-continue-shopping {
+  .cart-support-item strong {
     display: block;
-    width: 100%;
+    margin-bottom: 0.2rem;
+  }
+
+  .cart-support-item p,
+  .cart-empty-state p {
+    margin: 0;
+    color: var(--cart-muted);
+    line-height: 1.6;
+  }
+
+  .cart-empty-state {
+    display: grid;
+    place-items: center;
+    text-align: center;
+    gap: 0.8rem;
+    padding: 3rem 1.5rem;
+  }
+
+  .cart-empty-art {
+    width: 110px;
+    height: 110px;
+    display: grid;
+    place-items: center;
+    border-radius: 36px;
+    background: linear-gradient(135deg, rgba(201, 109, 49, 0.18), rgba(46, 125, 87, 0.12));
+    color: var(--cart-accent-dark);
+    font-size: 2.6rem;
+  }
+
+  .cart-empty-state h2 {
+    font-size: 2rem;
+  }
+
+  .cart-empty-btn {
+    max-width: 280px;
+    margin-bottom: 0;
+  }
+
+  .cart-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(17, 24, 39, 0.55);
+    z-index: 1000;
     padding: 1rem;
-    background: #f0f0f0;
-    color: #333;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+  }
+
+  .cart-modal.is-open {
+    display: flex;
+  }
+
+  .cart-modal-dialog {
+    width: min(100%, 420px);
+    padding: 1.6rem;
+    border-radius: 24px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
     text-align: center;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.3s ease;
   }
 
-  .btn-continue-shopping:hover {
-    background: #e8e8e8;
+  .cart-modal-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1rem;
+    border-radius: 20px;
+    display: grid;
+    place-items: center;
+    background: rgba(197, 68, 56, 0.12);
+    color: var(--cart-danger);
+    font-size: 1.35rem;
   }
 
-  .summary-card.info {
-    background: #f8f9fa;
+  .cart-modal-icon-warning {
+    background: rgba(201, 109, 49, 0.14);
+    color: var(--cart-accent-dark);
   }
 
-  .summary-card.info p {
-    margin: 0.5rem 0;
-    color: #666;
-    font-size: 0.9rem;
+  .cart-modal-dialog h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.45rem;
   }
 
-  .note {
-    padding: 0.75rem;
-    background: #e8f5e9;
-    color: #2e7d32;
-    border-left: 4px solid #4CAF50;
-    border-radius: 4px;
-    margin-top: 1rem !important;
+  .cart-modal-dialog p {
+    margin: 0 0 1.2rem;
+    color: var(--cart-muted);
+    line-height: 1.6;
   }
 
-  /* Empty Cart */
-  .empty-cart {
-    text-align: center;
-    padding: 4rem 2rem;
-    background: white;
-    border: 1px solid #eee;
-    border-radius: 8px;
+  .cart-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
   }
 
-  .empty-cart svg {
-    margin-bottom: 1rem;
-    opacity: 0.3;
-  }
-
-  .empty-cart h2 {
-    margin: 0 0 0.5rem 0;
-    color: #333;
-  }
-
-  .empty-cart p {
-    color: #666;
-    margin: 0 0 1.5rem 0;
-  }
-
-  .btn-primary {
-    display: inline-block;
-    padding: 0.75rem 2rem;
-    background: #4CAF50;
-    color: white;
-    text-decoration: none;
-    border-radius: 4px;
-    font-weight: 600;
-    transition: background 0.3s ease;
-  }
-
-  .btn-primary:hover {
-    background: #45a049;
-  }
-
-  @media (max-width: 768px) {
+  @media (max-width: 1080px) {
+    .cart-hero,
     .cart-layout {
       grid-template-columns: 1fr;
     }
 
-    .cart-summary {
-      position: relative;
-      top: 0;
+    .cart-sidebar {
+      position: static;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .cart-page {
+      padding-inline: 0.75rem;
     }
 
-    .cart-table {
-      font-size: 0.9rem;
+    .cart-hero-copy,
+    .cart-hero-panel,
+    .cart-summary-card,
+    .cart-support-card,
+    .cart-item,
+    .cart-empty-state {
+      border-radius: 22px;
     }
 
-    .cart-table th,
-    .cart-table td {
-      padding: 0.75rem 0.5rem;
+    .cart-item {
+      grid-template-columns: 1fr;
     }
 
-    .product-info {
-      flex-direction: column;
-      gap: 0.5rem;
+    .cart-item-media {
+      width: 100%;
+      height: 220px;
     }
 
-    .quantity-form {
-      flex-direction: column;
+    .cart-item-actions,
+    .cart-modal-actions {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .cart-hero-copy,
+    .cart-hero-panel,
+    .cart-summary-card,
+    .cart-support-card,
+    .cart-item,
+    .cart-empty-state {
+      padding: 1.1rem;
+    }
+
+    .cart-item-head {
+      flex-wrap: wrap;
+    }
+
+    .cart-item-head h2 {
+      font-size: 1.3rem;
+    }
+
+    .cart-qty-control {
+      grid-template-columns: 42px 1fr 42px;
+      width: 100%;
+      max-width: 220px;
     }
   }
 </style>
-<style>
-  .payment-form {
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #eee;
+
+<script>
+  let pendingRemoveForm = null;
+
+  function formatMoney(value) {
+    return 'Rs ' + value.toFixed(2);
   }
-  .payment-form h3 {
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-    color: #333;
+
+  function getCartItemFromElement(element) {
+    return element.closest('.cart-item');
   }
-  .card-options {
-    display: flex;
-    gap: 1.5rem;
-    margin-bottom: 1rem;
-    align-items: center;
+
+  function changeQuantity(button, delta) {
+    const item = getCartItemFromElement(button);
+    if (!item) {
+      return;
+    }
+
+    const input = item.querySelector('.cart-qty-input');
+    const currentValue = parseInt(input.value, 10) || 1;
+    const nextValue = Math.min(99, Math.max(1, currentValue + delta));
+    input.value = nextValue;
+    updatePreview(input);
   }
-  .card-options label {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-weight: 500;
-    cursor: pointer;
+
+  function updatePreview(input) {
+    const item = getCartItemFromElement(input);
+    if (!item) {
+      return;
+    }
+
+    const unitPrice = parseFloat(item.dataset.price || '0');
+    const quantity = Math.min(99, Math.max(1, parseInt(input.value, 10) || 1));
+    const itemTotal = unitPrice * quantity;
+    const totalTarget = item.querySelector('.js-item-total');
+
+    input.value = quantity;
+
+    if (totalTarget) {
+      totalTarget.textContent = itemTotal.toFixed(2);
+    }
+
+    recalculateSummary();
   }
-  .card-icon {
-    width: 36px;
-    height: 24px;
-    vertical-align: middle;
-    margin-right: 0.3rem;
-    border-radius: 4px;
-    border: 1px solid #eee;
-    background: #fff;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+
+  function recalculateSummary() {
+    let subtotal = 0;
+
+    document.querySelectorAll('.js-item-total').forEach((element) => {
+      subtotal += parseFloat(element.textContent || '0');
+    });
+
+    const tax = subtotal * 0.15;
+    const shipping = subtotal > 0 ? 50 : 0;
+    const total = subtotal + tax + shipping;
+
+    document.querySelectorAll('.js-summary-subtotal').forEach((element) => {
+      element.textContent = formatMoney(subtotal);
+    });
+
+    document.querySelectorAll('.js-summary-tax').forEach((element) => {
+      element.textContent = formatMoney(tax);
+    });
+
+    document.querySelectorAll('.js-summary-shipping').forEach((element) => {
+      element.textContent = formatMoney(shipping);
+    });
+
+    document.querySelectorAll('.js-summary-total').forEach((element) => {
+      element.textContent = formatMoney(total);
+    });
   }
-  .form-group {
-    margin-bottom: 1rem;
+
+  function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
   }
-  .form-row {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
+
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
   }
-  .payment-form .input {
-    width: 100%;
-    padding: 0.7rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
+
+  function openRemoveModal(button, itemName) {
+    const item = getCartItemFromElement(button);
+    pendingRemoveForm = item ? item.querySelector('.cart-remove-form') : null;
+    const nameTarget = document.getElementById('cartRemoveItemName');
+
+    if (nameTarget) {
+      nameTarget.textContent = itemName;
+    }
+
+    openModal('cartRemoveModal');
   }
-</style>
+
+  function closeRemoveModal() {
+    closeModal('cartRemoveModal');
+  }
+
+  function submitPendingRemove() {
+    if (pendingRemoveForm) {
+      pendingRemoveForm.submit();
+    }
+  }
+
+  function openClearCartModal() {
+    openModal('cartClearModal');
+  }
+
+  function closeClearCartModal() {
+    closeModal('cartClearModal');
+  }
+
+  document.querySelectorAll('.cart-modal').forEach((modal) => {
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) {
+        closeModal(modal.id);
+      }
+    });
+  });
+
+  document.querySelectorAll('.js-order-form').forEach((form) => {
+    form.addEventListener('submit', () => {
+      const button = form.querySelector('.js-order-btn');
+      if (!button) {
+        return;
+      }
+
+      button.classList.add('is-submitting');
+      button.disabled = true;
+      const label = button.querySelector('span');
+      if (label) {
+        label.textContent = 'Opening checkout...';
+      }
+    });
+  });
+
+  recalculateSummary();
+</script>
 {% endblock %}

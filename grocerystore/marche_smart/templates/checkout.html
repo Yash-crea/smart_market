@@ -1,47 +1,1337 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block content %}
-<h2>Checkout</h2>
-<form id="checkout-form" method="POST">
-	{% csrf_token %}
-	<div class="form-group">
-		<label for="name">Full Name</label>
-		<input type="text" id="name" name="name" class="form-control" required>
-	</div>
-	<div class="form-group">
-		<label for="address">Address</label>
-		<input type="text" id="address" name="address" class="form-control" required>
-	</div>
-	<div class="form-group">
-		<label for="email">Email</label>
-		<input type="email" id="email" name="email" class="form-control" required>
-	</div>
-	<hr>
-	<h4>Payment Details</h4>
-	<!-- Stripe Elements Placeholder -->
-	<div id="card-element" class="form-control"></div>
-	<div id="card-errors" role="alert" style="color:red;"></div>
-	<button type="submit" class="btn btn-primary" style="margin-top:1rem;">Pay Now</button>
-	<a href="{% url 'smart_market:cart' %}" class="btn btn-secondary" style="margin-top:1rem;">Back to Cart</a>
-</form>
-<script src="https://js.stripe.com/v3/"></script>
+<div class="checkout-container">
+    <div class="checkout-wrapper">
+        <!-- Security Header -->
+        <div class="security-header">
+            <div class="security-badges">
+                <i class="fas fa-shield-alt"></i>
+                <span>Secure Checkout</span>
+                <div class="payment-badges">
+                    <i class="fab fa-cc-visa"></i>
+                    <i class="fab fa-cc-mastercard"></i>
+                    <i class="fas fa-mobile-alt"></i>
+                    <i class="fas fa-lock"></i>
+                </div>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    <i class="fas fa-info-circle"></i>
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="checkout-layout">
+            <!-- Main Checkout Form -->
+            <div class="checkout-form">
+                <h1 class="checkout-title">
+                    <i class="fas fa-shopping-cart"></i>
+                    Complete Your Order
+                </h1>
+
+                    <form id="checkout-form" method="POST" action="{% url 'smart_market:process_payment' %}"
+                        data-subtotal="{{ subtotal|floatformat:2 }}"
+                        data-tax="{{ tax_amount|floatformat:2 }}"
+                        data-default-shipping="{{ default_shipping_cost|floatformat:2 }}"
+                        data-cod-fee="{{ cod_handling_fee|floatformat:2 }}">
+                    {% csrf_token %}
+
+                    <!-- Step 1: Customer Information -->
+                    <div class="checkout-section">
+                        <div class="section-header">
+                            <span class="step-number">1</span>
+                            <h3>Customer Information</h3>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="customer_name">Full Name <span class="required">*</span></label>
+                                <input type="text" id="customer_name" name="customer_name" 
+                                       value="{{ checkout_data.customer_name }}" autocomplete="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="customer_email">Email Address <span class="required">*</span></label>
+                                <input type="email" id="customer_email" name="customer_email" 
+                                       value="{{ checkout_data.customer_email }}" autocomplete="email" required>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="customer_phone">Phone Number <span class="required">*</span></label>
+                                <input type="tel" id="customer_phone" name="customer_phone" 
+                                       value="{{ checkout_data.customer_phone }}" placeholder="+230 xxxx xxxx" autocomplete="tel" required>
+                            </div>
+                            <div class="form-group full-width">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="save_details" name="save_details"{% if checkout_data.save_details %} checked{% endif %}>
+                                    <label for="save_details">Save details for next time</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Delivery Options -->
+                    <div class="checkout-section">
+                        <div class="section-header">
+                            <span class="step-number">2</span>
+                            <h3>Delivery Options</h3>
+                        </div>
+                        <div class="delivery-options">
+                            <div class="delivery-option">
+                                <input type="radio" id="home_delivery" name="delivery_method" value="home_delivery"{% if checkout_data.delivery_method != 'store_pickup' %} checked{% endif %}>
+                                <label for="home_delivery">
+                                    <div class="option-header">
+                                        <div>
+                                            <i class="fas fa-truck"></i>
+                                            <strong>Home Delivery</strong>
+                                        </div>
+                                        <span class="price">Rs {{ default_shipping_cost|floatformat:2 }}</span>
+                                    </div>
+                                    <p>Delivered to your doorstep in 2-3 business days</p>
+                                </label>
+                            </div>
+                            <div class="delivery-option">
+                                <input type="radio" id="store_pickup" name="delivery_method" value="store_pickup"{% if checkout_data.delivery_method == 'store_pickup' %} checked{% endif %}>
+                                <label for="store_pickup">
+                                    <div class="option-header">
+                                        <div>
+                                            <i class="fas fa-store"></i>
+                                            <strong>Store Pickup</strong>
+                                        </div>
+                                        <span class="price free">Free</span>
+                                    </div>
+                                    <p>Ready for pickup within 24 hours</p>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Home Delivery Address -->
+                        <div id="delivery-address" class="address-section">
+                            <h4>Delivery Address</h4>
+                            <div class="form-grid">
+                                <div class="form-group full-width">
+                                    <label for="shipping_address">Street Address <span class="required">*</span></label>
+                                    <textarea id="shipping_address" name="shipping_address" 
+                                              placeholder="Building name, street, apartment" autocomplete="street-address">{{ checkout_data.shipping_address }}</textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="shipping_city">City <span class="required">*</span></label>
+                                    <select id="shipping_city" name="shipping_city">
+                                        <option value="">Select City</option>
+                                        <option value="Port Louis"{% if checkout_data.shipping_city == 'Port Louis' %} selected{% endif %}>Port Louis</option>
+                                        <option value="Curepipe"{% if checkout_data.shipping_city == 'Curepipe' %} selected{% endif %}>Curepipe</option>
+                                        <option value="Vacoas"{% if checkout_data.shipping_city == 'Vacoas' %} selected{% endif %}>Vacoas</option>
+                                        <option value="Rose Hill"{% if checkout_data.shipping_city == 'Rose Hill' %} selected{% endif %}>Rose Hill</option>
+                                        <option value="Grand Baie"{% if checkout_data.shipping_city == 'Grand Baie' %} selected{% endif %}>Grand Baie</option>
+                                        <option value="Mahebourg"{% if checkout_data.shipping_city == 'Mahebourg' %} selected{% endif %}>Mahebourg</option>
+                                        <option value="Other"{% if checkout_data.shipping_city == 'Other' %} selected{% endif %}>Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="shipping_postal_code">Postal Code</label>
+                                    <input type="text" id="shipping_postal_code" name="shipping_postal_code" 
+                                           value="{{ checkout_data.shipping_postal_code }}" placeholder="11xxx" autocomplete="postal-code">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Store Pickup Location -->
+                        <div id="pickup-location" class="address-section"{% if checkout_data.delivery_method != 'store_pickup' %} style="display: none;"{% endif %}>
+                            <h4>Pickup Location</h4>
+                            <div class="form-group">
+                                <label for="pickup_store">Select Store <span class="required">*</span></label>
+                                <select id="pickup_store" name="pickup_store">
+                                    <option value="port_louis"{% if checkout_data.pickup_store == 'port_louis' %} selected{% endif %}>Smart Market - Port Louis (Main Branch)</option>
+                                    <option value="rose_hill"{% if checkout_data.pickup_store == 'rose_hill' %} selected{% endif %}>Smart Market - Rose Hill</option>
+                                    <option value="curepipe"{% if checkout_data.pickup_store == 'curepipe' %} selected{% endif %}>Smart Market - Curepipe</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Payment Method -->
+                    <div class="checkout-section">
+                        <div class="section-header">
+                            <span class="step-number">3</span>
+                            <h3>Payment Method</h3>
+                        </div>
+                        
+                        <div class="payment-methods">
+                            <!-- Credit/Debit Cards -->
+                            <div class="payment-option">
+                                <input type="radio" id="credit_card" name="payment_method" value="credit_card"{% if checkout_data.payment_method == 'credit_card' or not checkout_data.payment_method %} checked{% endif %}>
+                                <label for="credit_card">
+                                    <div>
+                                        <i class="fas fa-credit-card"></i>
+                                        <span>Credit Card</span>
+                                    </div>
+                                    <div class="card-icons">
+                                        <i class="fab fa-cc-visa"></i>
+                                        <i class="fab fa-cc-mastercard"></i>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="payment-option">
+                                <input type="radio" id="debit_card" name="payment_method" value="debit_card"{% if checkout_data.payment_method == 'debit_card' %} checked{% endif %}>
+                                <label for="debit_card">
+                                    <div>
+                                        <i class="fas fa-credit-card"></i>
+                                        <span>Debit Card</span>
+                                    </div>
+                                    <div class="card-icons">
+                                        <i class="fab fa-cc-visa"></i>
+                                        <i class="fab fa-cc-mastercard"></i>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Mobile Payments (Mauritius Specific) -->
+                            <div class="payment-option">
+                                <input type="radio" id="mobile_money" name="payment_method" value="mobile_money"{% if checkout_data.payment_method == 'mobile_money' %} checked{% endif %}>
+                                <label for="mobile_money">
+                                    <div>
+                                        <i class="fas fa-mobile-alt"></i>
+                                        <div>
+                                            <span>Mobile Payment</span>
+                                            <small>Juice, My.T Money</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Bank Transfer -->
+                            <div class="payment-option">
+                                <input type="radio" id="bank_transfer" name="payment_method" value="bank_transfer"{% if checkout_data.payment_method == 'bank_transfer' %} checked{% endif %}>
+                                <label for="bank_transfer">
+                                    <div>
+                                        <i class="fas fa-university"></i>
+                                        <div>
+                                            <span>Bank Transfer</span>
+                                            <small>Manual verification required</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Cash on Delivery -->
+                            <div class="payment-option">
+                                <input type="radio" id="cash_on_delivery" name="payment_method" value="cash_on_delivery"{% if checkout_data.payment_method == 'cash_on_delivery' %} checked{% endif %}>
+                                <label for="cash_on_delivery">
+                                    <div>
+                                        <i class="fas fa-money-bill-wave"></i>
+                                        <div>
+                                            <span>Cash on Delivery</span>
+                                            <small>+Rs 25 handling fee</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Credit Card Details -->
+                        <div id="card-details" class="payment-details">
+                            <h4>Card Details</h4>
+                            <div class="form-grid">
+                                <div class="form-group full-width">
+                                 <label for="card_number">Card Number <span class="required">*</span></label>
+                                    <input type="text" id="card_number" name="card_number" 
+                                     placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric" autocomplete="cc-number">
+                                </div>
+                                <div class="form-group">
+                                 <label for="expiry">Expiry Date <span class="required">*</span></label>
+                                    <input type="text" id="expiry" name="expiry" 
+                                     placeholder="MM/YY" maxlength="5" inputmode="numeric" autocomplete="cc-exp">
+                                </div>
+                                <div class="form-group">
+                                 <label for="cvv">CVV <span class="required">*</span></label>
+                                    <input type="text" id="cvv" name="cvv" 
+                                     placeholder="123" maxlength="4" inputmode="numeric" autocomplete="cc-csc">
+                                </div>
+                                <div class="form-group full-width">
+                                 <label for="cardholder_name">Cardholder Name <span class="required">*</span></label>
+                                    <input type="text" id="cardholder_name" name="cardholder_name" 
+                                     placeholder="Name on card" autocomplete="cc-name">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mobile Payment Info -->
+                        <div id="mobile-payment-details" class="payment-details" style="display: none;">
+                            <div class="info-box">
+                                <i class="fas fa-mobile-alt"></i>
+                                <p>You will be redirected to complete payment via your mobile payment app after placing the order.</p>
+                            </div>
+                        </div>
+
+                        <!-- Bank Transfer Info -->
+                        <div id="bank-transfer-details" class="payment-details" style="display: none;">
+                            <div class="info-box">
+                                <i class="fas fa-university"></i>
+                                <p>Bank transfer details will be provided after order confirmation. Order will be processed once payment is verified.</p>
+                            </div>
+                        </div>
+
+                        <!-- COD Info -->
+                        <div id="cod-details" class="payment-details" style="display: none;">
+                            <div class="info-box warning">
+                                <i class="fas fa-money-bill-wave"></i>
+                                <p>Pay in cash when your order is delivered. Additional Rs 25 handling fee applies.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Review & Confirm -->
+                    <div class="checkout-section">
+                        <div class="section-header">
+                            <span class="step-number">4</span>
+                            <h3>Review & Confirm</h3>
+                        </div>
+                        
+                        <div class="order-review">
+                            <div class="review-grid">
+                                <div class="review-item">
+                                    <strong>Items:</strong>
+                                    <span id="review-items">{{ cart_items|length }} item(s)</span>
+                                </div>
+                                <div class="review-item">
+                                    <strong>Delivery:</strong>
+                                    <span id="review-delivery">{% if checkout_data.delivery_method == 'store_pickup' %}Store Pickup{% else %}Home Delivery{% endif %}</span>
+                                </div>
+                                <div class="review-item">
+                                    <strong>Payment:</strong>
+                                    <span id="review-payment">
+                                        {% if checkout_data.payment_method == 'debit_card' %}
+                                            Debit Card
+                                        {% elif checkout_data.payment_method == 'mobile_money' %}
+                                            Mobile Payment
+                                        {% elif checkout_data.payment_method == 'bank_transfer' %}
+                                            Bank Transfer
+                                        {% elif checkout_data.payment_method == 'cash_on_delivery' %}
+                                            Cash on Delivery
+                                        {% else %}
+                                            Credit Card
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="review-item total">
+                                    <strong>Total Amount:</strong>
+                                    <span>Rs <span id="review-total">{{ total|floatformat:2 }}</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="terms-section">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="accept_terms" name="accept_terms" required>
+                                <label for="accept_terms">
+                                    I agree to the <a href="{% url 'smart_market:contact' %}" target="_blank">Terms & Conditions</a> 
+                                    and <a href="{% url 'smart_market:contact' %}" target="_blank">Privacy Policy</a>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="place-order-btn" id="place-order-btn">
+                            <i class="fas fa-lock"></i>
+                            Place Secure Order - Rs {{ total }}
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Action Buttons -->
+                <div class="checkout-actions">
+                    <a href="{% url 'smart_market:cart' %}" class="back-btn">
+                        <i class="fas fa-arrow-left"></i> Back to Cart
+                    </a>
+                </div>
+            </div>
+
+            <!-- Order Summary Sidebar -->
+            <div class="order-summary">
+                <div class="summary-header">
+                    <h3><i class="fas fa-receipt"></i> Order Summary</h3>
+                </div>
+
+                <div class="summary-items">
+                    {% for item in cart_items %}
+                    <div class="summary-item">
+                        <div class="item-info">
+                            <h4>{{ item.product_name }}</h4>
+                            <p>Qty: {{ item.quantity }} × Rs {{ item.unit_price }}</p>
+                        </div>
+                        <div class="item-price">
+                            Rs {{ item.subtotal }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="summary-calculations">
+                    <div class="calc-row">
+                        <span>Subtotal:</span>
+                        <span>Rs {{ subtotal }}</span>
+                    </div>
+                    <div class="calc-row">
+                        <span>Tax (15%):</span>
+                        <span>Rs {{ tax_amount|floatformat:2 }}</span>
+                    </div>
+                    <div class="calc-row" id="shipping-row">
+                        <span>Shipping:</span>
+                        <span id="shipping-cost">Rs {{ shipping_cost|floatformat:2 }}</span>
+                    </div>
+                    <div class="calc-total">
+                        <span>Total:</span>
+                        <span>Rs <span id="total-amount">{{ total|floatformat:2 }}</span></span>
+                    </div>
+                </div>
+
+                <!-- Trust & Support Section -->
+                <div class="trust-section">
+                    <div class="security-info">
+                        <i class="fas fa-shield-alt"></i>
+                        <div>
+                            <strong>100% Secure</strong>
+                            <p>SSL encrypted checkout</p>
+                        </div>
+                    </div>
+                    
+                    <div class="support-info">
+                        <div class="support-item">
+                            <i class="fas fa-phone"></i>
+                            <div>
+                                <strong>Support</strong>
+                                <p>+230 5254 1234</p>
+                            </div>
+                        </div>
+                        
+                        <div class="support-item">
+                            <i class="fas fa-envelope"></i>
+                            <div>
+                                <strong>Email</strong>
+                                <p>support@smartmarket.mu</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="policy-links">
+                        <a href="{% url 'smart_market:contact' %}">Return Policy</a>
+                        <a href="{% url 'smart_market:contact' %}">Refund Policy</a>
+                        <a href="{% url 'smart_market:contact' %}">Privacy Policy</a>
+                    </div>
+
+                    <div class="payment-security">
+                        <p>Secured by:</p>
+                        <div class="security-badges">
+                            <span class="badge">SSL</span>
+                            <span class="badge">256-bit</span>
+                            <span class="badge">Encrypted</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Modern Checkout Styling */
+.checkout-container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 2rem 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.checkout-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.security-header {
+    background: white;
+    padding: 1rem 2rem;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 2px solid #e8f4f8;
+    margin-bottom: 0;
+}
+
+.security-badges {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #2d5a27;
+    font-weight: 600;
+}
+
+.security-badges i {
+    margin-right: 0.5rem;
+    font-size: 1.2rem;
+}
+
+.payment-badges {
+    display: flex;
+    gap: 1rem;
+    color: #666;
+}
+
+.payment-badges i {
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.checkout-layout {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 2rem;
+    background: white;
+    border-radius: 0 0 12px 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+
+.checkout-form {
+    padding: 2rem;
+}
+
+.checkout-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.checkout-title i {
+    color: #2d5a27;
+    margin-right: 0.5rem;
+}
+
+.checkout-section {
+    margin-bottom: 3rem;
+    padding: 1.5rem;
+    background: #fafbfc;
+    border-radius: 12px;
+    border-left: 4px solid #2d5a27;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.step-number {
+    background: #2d5a27;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    margin-right: 1rem;
+    font-size: 0.9rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    color: #1a1a1a;
+    font-weight: 600;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+.required {
+    color: #dc2626;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    padding: 0.75rem 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #2d5a27;
+    box-shadow: 0 0 0 3px rgba(45, 90, 39, 0.1);
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #2d5a27;
+}
+
+.checkbox-group label {
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+/* Delivery Options */
+.delivery-options {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.delivery-option {
+    position: relative;
+}
+
+.delivery-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.delivery-option label {
+    display: block;
+    padding: 1.5rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.delivery-option input[type="radio"]:checked + label {
+    border-color: #2d5a27;
+    background: #f0f7f4;
+}
+
+.option-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.option-header > div {
+    display: flex;
+    align-items: center;
+}
+
+.option-header i {
+    color: #2d5a27;
+    margin-right: 0.5rem;
+    font-size: 1.2rem;
+}
+
+.price {
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.price.free {
+    color: #2d5a27;
+}
+
+.delivery-option p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.address-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+}
+
+.address-section h4 {
+    margin-bottom: 1rem;
+    color: #1a1a1a;
+    font-weight: 600;
+}
+
+/* Payment Methods */
+.payment-methods {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.payment-option {
+    position: relative;
+}
+
+.payment-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.payment-option label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.payment-option input[type="radio"]:checked + label {
+    border-color: #2d5a27;
+    background: #f0f7f4;
+}
+
+.payment-option label > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.payment-option i {
+    color: #2d5a27;
+    font-size: 1.2rem;
+}
+
+.payment-option span {
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.payment-option small {
+    color: #666;
+    font-size: 0.8rem;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.card-icons {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.card-icons i {
+    font-size: 1.5rem;
+    color: #666;
+}
+
+.payment-details {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    margin-top: 1rem;
+}
+
+.payment-details h4 {
+    margin-bottom: 1rem;
+    color: #1a1a1a;
+    font-weight: 600;
+}
+
+.info-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+}
+
+.info-box.warning {
+    background: #fffbeb;
+    border-color: #fed7aa;
+}
+
+.info-box i {
+    color: #2563eb;
+    font-size: 1.2rem;
+    margin-top: 0.1rem;
+}
+
+.info-box.warning i {
+    color: #d97706;
+}
+
+/* Order Review */
+.order-review {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+}
+
+.review-grid {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.review-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.review-item:last-child {
+    border-bottom: none;
+}
+
+.review-item.total {
+    background: #f9fafb;
+    padding: 1rem;
+    border-radius: 8px;
+    border: none;
+    margin-top: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.terms-section {
+    margin: 1.5rem 0;
+}
+
+.place-order-btn {
+    width: 100%;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #2d5a27 0%, #34d058 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 16px rgba(45, 90, 39, 0.3);
+}
+
+.place-order-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(45, 90, 39, 0.4);
+}
+
+.place-order-btn:active {
+    transform: translateY(0);
+}
+
+.checkout-actions {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.back-btn {
+    color: #666;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 0.2s ease;
+}
+
+.back-btn:hover {
+    color: #2d5a27;
+}
+
+/* Order Summary Sidebar */
+.order-summary {
+    background: #f8fafc;
+    border-left: 1px solid #e5e7eb;
+    padding: 2rem;
+    max-height: max-content;
+    position: sticky;
+    top: 2rem;
+}
+
+.summary-header {
+    margin-bottom: 2rem;
+}
+
+.summary-header h3 {
+    color: #1a1a1a;
+    font-weight: 600;
+    margin: 0;
+}
+
+.summary-items {
+    margin-bottom: 2rem;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 1rem 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.summary-item:last-child {
+    border-bottom: none;
+}
+
+.item-info h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.item-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.item-price {
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.summary-calculations {
+    border-top: 2px solid #e5e7eb;
+    padding-top: 1rem;
+}
+
+.calc-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    color: #666;
+}
+
+.calc-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    padding-top: 1rem;
+    border-top: 2px solid #2d5a27;
+    margin-top: 1rem;
+}
+
+/* Trust & Support Section */
+.trust-section {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 2px solid #e5e7eb;
+}
+
+.security-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f0f7f4;
+    border-radius: 8px;
+}
+
+.security-info i {
+    color: #2d5a27;
+    font-size: 1.5rem;
+}
+
+.security-info strong {
+    color: #1a1a1a;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.security-info p {
+    margin: 0;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.support-info {
+    margin-bottom: 1.5rem;
+}
+
+.support-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.support-item i {
+    color: #2d5a27;
+    width: 20px;
+}
+
+.support-item strong {
+    color: #1a1a1a;
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 0.1rem;
+}
+
+.support-item p {
+    margin: 0;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.policy-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.policy-links a {
+    color: #2d5a27;
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: color 0.2s ease;
+}
+
+.policy-links a:hover {
+    color: #1a3d1a;
+    text-decoration: underline;
+}
+
+.payment-security {
+    text-align: center;
+}
+
+.payment-security p {
+    margin: 0 0 0.75rem 0;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.security-badges {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.badge {
+    background: #2d5a27;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Alert Messages */
+.alert {
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.alert-success {
+    background: #d1fae5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.alert-error {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.alert-warning {
+    background: #fef3c7;
+    color: #d97706;
+    border: 1px solid #fde68a;
+}
+
+.alert-info {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .checkout-layout {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+    
+    .order-summary {
+        border-left: none;
+        border-top: 1px solid #e5e7eb;
+        position: static;
+    }
+    
+    .checkout-wrapper {
+        padding: 0 0.5rem;
+    }
+    
+    .checkout-form,
+    .order-summary {
+        padding: 1rem;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .security-badges {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+}
+
+/* Loading States */
+.place-order-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Focus Outlines for Accessibility */
+*:focus {
+    outline: 2px solid #2d5a27;
+    outline-offset: 2px;
+}
+
+input[type="radio"]:focus + label,
+input[type="checkbox"]:focus + label {
+    outline: 2px solid #2d5a27;
+    outline-offset: 2px;
+}
+</style>
+
 <script>
-// Stripe integration (frontend only, backend needed for real payments)
-const stripe = Stripe('pk_test_your_publishable_key'); // Replace with your Stripe publishable key
-const elements = stripe.elements();
-const card = elements.create('card');
-card.mount('#card-element');
-card.on('change', function(event) {
-	const displayError = document.getElementById('card-errors');
-	if (event.error) {
-		displayError.textContent = event.error.message;
-	} else {
-		displayError.textContent = '';
-	}
-});
-document.getElementById('checkout-form').addEventListener('submit', async function(event) {
-	event.preventDefault();
-	// You need to implement payment intent creation in your Django backend
-	alert('Payment processing is not implemented yet.');
+document.addEventListener('DOMContentLoaded', function() {
+    const checkoutForm = document.getElementById('checkout-form');
+    if (!checkoutForm) {
+        return;
+    }
+
+    const subtotal = Number.parseFloat(checkoutForm.dataset.subtotal || '0');
+    const taxAmount = Number.parseFloat(checkoutForm.dataset.tax || '0');
+    const defaultShipping = Number.parseFloat(checkoutForm.dataset.defaultShipping || '0');
+    const codFee = Number.parseFloat(checkoutForm.dataset.codFee || '0');
+
+    const paymentMethods = document.querySelectorAll('input[name="payment_method"]');
+    const cardDetails = document.getElementById('card-details');
+    const mobileDetails = document.getElementById('mobile-payment-details');
+    const bankDetails = document.getElementById('bank-transfer-details');
+    const codDetails = document.getElementById('cod-details');
+    const reviewPayment = document.getElementById('review-payment');
+
+    const deliveryMethods = document.querySelectorAll('input[name="delivery_method"]');
+    const deliveryAddress = document.getElementById('delivery-address');
+    const pickupLocation = document.getElementById('pickup-location');
+    const shippingRow = document.getElementById('shipping-row');
+    const shippingCost = document.getElementById('shipping-cost');
+    const totalAmount = document.getElementById('total-amount');
+    const reviewDelivery = document.getElementById('review-delivery');
+    const reviewTotal = document.getElementById('review-total');
+    const cardNumber = document.getElementById('card_number');
+    const expiry = document.getElementById('expiry');
+    const cvv = document.getElementById('cvv');
+    const cardholderName = document.getElementById('cardholder_name');
+    const shippingAddress = document.getElementById('shipping_address');
+    const shippingCity = document.getElementById('shipping_city');
+    const pickupStore = document.getElementById('pickup_store');
+    const placeOrderBtn = document.getElementById('place-order-btn');
+
+    function getSelectedValue(elements) {
+        const selected = Array.from(elements).find((element) => element.checked);
+        return selected ? selected.value : '';
+    }
+
+    function isCardPayment(paymentMethod) {
+        return paymentMethod === 'credit_card' || paymentMethod === 'debit_card';
+    }
+
+    function formatMoney(value) {
+        return value.toFixed(2);
+    }
+
+    function getPaymentLabel(paymentMethod) {
+        switch (paymentMethod) {
+            case 'debit_card':
+                return 'Debit Card';
+            case 'mobile_money':
+                return 'Mobile Payment';
+            case 'bank_transfer':
+                return 'Bank Transfer';
+            case 'cash_on_delivery':
+                return 'Cash on Delivery';
+            default:
+                return 'Credit Card';
+        }
+    }
+
+    function syncDeliveryFields(deliveryMethod) {
+        const isHomeDelivery = deliveryMethod !== 'store_pickup';
+
+        deliveryAddress.style.display = isHomeDelivery ? 'block' : 'none';
+        pickupLocation.style.display = isHomeDelivery ? 'none' : 'block';
+
+        shippingAddress.required = isHomeDelivery;
+        shippingAddress.disabled = !isHomeDelivery;
+        shippingCity.required = isHomeDelivery;
+        shippingCity.disabled = !isHomeDelivery;
+        pickupStore.required = !isHomeDelivery;
+        pickupStore.disabled = isHomeDelivery;
+
+        reviewDelivery.textContent = isHomeDelivery ? 'Home Delivery' : 'Store Pickup';
+    }
+
+    function syncPaymentFields(paymentMethod) {
+        const showCardDetails = isCardPayment(paymentMethod);
+
+        cardDetails.style.display = showCardDetails ? 'block' : 'none';
+        mobileDetails.style.display = paymentMethod === 'mobile_money' ? 'block' : 'none';
+        bankDetails.style.display = paymentMethod === 'bank_transfer' ? 'block' : 'none';
+        codDetails.style.display = paymentMethod === 'cash_on_delivery' ? 'block' : 'none';
+
+        [cardNumber, expiry, cvv, cardholderName].forEach((field) => {
+            field.required = showCardDetails;
+            field.disabled = !showCardDetails;
+        });
+
+        reviewPayment.textContent = getPaymentLabel(paymentMethod);
+    }
+
+    function syncTotals() {
+        const deliveryMethod = getSelectedValue(deliveryMethods) || 'home_delivery';
+        const paymentMethod = getSelectedValue(paymentMethods) || 'credit_card';
+        let shippingValue = deliveryMethod === 'home_delivery' ? defaultShipping : 0;
+
+        if (paymentMethod === 'cash_on_delivery') {
+            shippingValue += codFee;
+        }
+
+        const totalValue = subtotal + taxAmount + shippingValue;
+        const label = shippingRow.querySelector('span');
+
+        if (label) {
+            if (deliveryMethod === 'store_pickup' && paymentMethod === 'cash_on_delivery') {
+                label.textContent = 'Handling fee:';
+            } else if (paymentMethod === 'cash_on_delivery') {
+                label.textContent = 'Shipping + handling:';
+            } else if (deliveryMethod === 'store_pickup') {
+                label.textContent = 'Pickup:';
+            } else {
+                label.textContent = 'Shipping:';
+            }
+        }
+
+        shippingCost.textContent = shippingValue > 0 ? `Rs ${formatMoney(shippingValue)}` : 'Free';
+        totalAmount.textContent = formatMoney(totalValue);
+        reviewTotal.textContent = formatMoney(totalValue);
+        placeOrderBtn.innerHTML = `<i class="fas fa-lock"></i> Place Secure Order - Rs ${formatMoney(totalValue)}`;
+    }
+
+    function syncCheckoutState() {
+        const deliveryMethod = getSelectedValue(deliveryMethods) || 'home_delivery';
+        const paymentMethod = getSelectedValue(paymentMethods) || 'credit_card';
+
+        syncDeliveryFields(deliveryMethod);
+        syncPaymentFields(paymentMethod);
+        syncTotals();
+    }
+
+    paymentMethods.forEach((method) => {
+        method.addEventListener('change', syncCheckoutState);
+    });
+
+    deliveryMethods.forEach((method) => {
+        method.addEventListener('change', syncCheckoutState);
+    });
+
+    if (cardNumber) {
+        cardNumber.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
+            let formattedValue = '';
+            for (let i = 0; i < value.length; i++) {
+                if (i > 0 && i % 4 === 0) {
+                    formattedValue += ' ';
+                }
+                formattedValue += value[i];
+            }
+            e.target.value = formattedValue;
+        });
+    }
+
+    if (expiry) {
+        expiry.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.substring(0, 2) + '/' + value.substring(2, 4);
+            }
+            e.target.value = value;
+        });
+    }
+
+    if (cvv) {
+        cvv.addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+    }
+
+    checkoutForm.addEventListener('submit', function(e) {
+        syncCheckoutState();
+        if (!checkoutForm.checkValidity()) {
+            return;
+        }
+        placeOrderBtn.disabled = true;
+        placeOrderBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    });
+
+    syncCheckoutState();
 });
 </script>
 {% endblock %}

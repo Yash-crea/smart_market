@@ -1,0 +1,539 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<section class="owner-inventory-container">
+  <div class="inventory-header">
+    <h1>📦 Inventory Management</h1>
+    <p>Manage your product catalog</p>
+    
+    <div class="inventory-stats">
+      <div class="stat-card">
+        <h3>{{ total_products_count }}</h3>
+        <p>Total Products</p>
+      </div>
+      <div class="stat-card warning">
+        <h3>{{ low_stock_count }}</h3>
+        <p>Low Stock Items</p>
+      </div>
+      <div class="stat-card">
+        <h3>Rs {{ total_inventory_value|floatformat:2 }}</h3>
+        <p>Total Inventory Value</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="inventory-controls">
+    <form method="get" class="search-form">
+      <input type="text" name="search" value="{{ search_query }}" placeholder="Search products..." class="search-input">
+      <button type="submit" class="btn-search">🔍 Search</button>
+    </form>
+    
+    <div class="action-buttons">
+      <button onclick="showAddForm()" class="btn-add">➕ Add Product</button>
+      <a href="{% url 'smart_market:owner_dashboard' %}" class="btn-secondary">← Back to Dashboard</a>
+    </div>
+  </div>
+
+  {% if error_message %}
+    <div class="error-message">{{ error_message }}</div>
+  {% endif %}
+
+  <!-- Add Product Form -->
+  <div id="add-product-form" class="product-form" style="display: none;">
+    <h3>Add New Product</h3>
+    <form method="post" action="{% url 'smart_market:add_product' %}">
+      {% csrf_token %}
+      <div class="form-row">
+        <input type="text" name="name" placeholder="Product Name" required>
+        <select name="type" required>
+          <option value="">Select Type</option>
+          <option value="regular">Regular Product</option>
+          <option value="smart">Smart Product</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <input type="number" step="0.01" name="price" placeholder="Price (Rs)" required>
+        <input type="number" name="stock_quantity" placeholder="Stock Quantity" value="0">
+      </div>
+      <textarea name="description" placeholder="Product Description" rows="2"></textarea>
+      <input type="url" name="image_url" placeholder="Image URL (optional)">
+      <div class="form-buttons">
+        <button type="submit" class="btn-save">Save Product</button>
+        <button type="button" onclick="hideAddForm()" class="btn-cancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Products List -->
+  <div class="products-list">
+    {% for item in products %}
+      <div class="product-item {% if item.low_stock %}low-stock{% endif %}">
+        <div class="product-info">
+          {% if item.product.image_url %}
+            <img src="{{ item.product.image_url }}" alt="{{ item.product.name }}" class="product-image">
+          {% else %}
+            <div class="product-image placeholder">📦</div>
+          {% endif %}
+          
+          <div class="product-details">
+            <h3>{{ item.product.name }}</h3>
+            <p class="product-type">{{ item.type|capfirst }} Product</p>
+            <p class="price">Rs {{ item.product.price }}</p>
+            <p class="stock {% if item.low_stock %}low{% endif %}">
+              Stock: {{ item.product.stock_quantity|default:0 }}
+              {% if item.low_stock %}<span class="warning">⚠ LOW</span>{% endif %}
+            </p>
+            {% if item.product.description %}
+              <p class="description">{{ item.product.description }}</p>
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="product-actions">
+          <!-- Quick Update Stock -->
+          <form method="post" action="{% url 'smart_market:update_stock' %}" class="stock-form">
+            {% csrf_token %}
+            <input type="hidden" name="product_id" value="{{ item.product.id }}">
+            <input type="hidden" name="product_type" value="{{ item.type }}">
+            <div class="stock-update">
+              <label>Update Stock:</label>
+              <input type="number" name="stock_quantity" value="{{ item.product.stock_quantity|default:0 }}" min="0">
+              <button type="submit" class="btn-update-stock">✓</button>
+            </div>
+          </form>
+          
+          <!-- Edit/Delete Buttons -->
+          <div class="action-btns">
+            <button 
+              class="btn-edit" 
+              data-product-id="{{ item.product.id }}" 
+              data-product-type="{{ item.type }}" 
+              data-product-name="{{ item.product.name }}" 
+              data-product-price="{{ item.product.price }}" 
+              data-product-stock="{{ item.product.stock_quantity|default:0 }}" 
+              data-product-description="{{ item.product.description|default:'' }}" 
+              data-product-image="{{ item.product.image_url|default:'' }}"
+              onclick="showEditFormFromData(this)">
+              ✏️ Edit
+            </button>
+            <form method="post" action="{% url 'smart_market:delete_product' %}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete {{ item.product.name|escapejs }}?')">
+              {% csrf_token %}
+              <input type="hidden" name="product_id" value="{{ item.product.id }}">
+              <input type="hidden" name="product_type" value="{{ item.type }}">
+              <button type="submit" class="btn-delete">🗑️ Delete</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="no-products">
+        <h3>No products found</h3>
+        <p>{% if search_query %}No products match your search.{% else %}Start by adding your first product.{% endif %}</p>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Edit Product Form -->
+  <div id="edit-product-form" class="product-form" style="display: none;">
+    <h3>Edit Product</h3>
+    <form method="post" action="{% url 'smart_market:edit_product' %}">
+      {% csrf_token %}
+      <input type="hidden" id="edit-id" name="product_id">
+      <input type="hidden" id="edit-type" name="product_type">
+      <div class="form-row">
+        <input type="text" id="edit-name" name="name" placeholder="Product Name" required>
+        <input type="number" step="0.01" id="edit-price" name="price" placeholder="Price (Rs)" required>
+      </div>
+      <div class="form-row">
+        <input type="number" id="edit-stock" name="stock_quantity" placeholder="Stock Quantity">
+      </div>
+      <textarea id="edit-description" name="description" placeholder="Product Description" rows="2"></textarea>
+      <input type="url" id="edit-image" name="image_url" placeholder="Image URL (optional)">
+      <div class="form-buttons">
+        <button type="submit" class="btn-save">Update Product</button>
+        <button type="button" onclick="hideEditForm()" class="btn-cancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<script>
+function showAddForm() {
+  document.getElementById('add-product-form').style.display = 'block';
+  document.getElementById('edit-product-form').style.display = 'none';
+}
+
+function hideAddForm() {
+  document.getElementById('add-product-form').style.display = 'none';
+}
+
+function showEditForm(id, type, name, price, stock, description, imageUrl) {
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-type').value = type;
+  document.getElementById('edit-name').value = name;
+  document.getElementById('edit-price').value = price;
+  document.getElementById('edit-stock').value = stock;
+  document.getElementById('edit-description').value = description;
+  document.getElementById('edit-image').value = imageUrl;
+  
+  document.getElementById('add-product-form').style.display = 'none';
+  document.getElementById('edit-product-form').style.display = 'block';
+}
+
+function showEditFormFromData(button) {
+  const id = button.getAttribute('data-product-id');
+  const type = button.getAttribute('data-product-type');
+  const name = button.getAttribute('data-product-name');
+  const price = button.getAttribute('data-product-price');
+  const stock = button.getAttribute('data-product-stock');
+  const description = button.getAttribute('data-product-description');
+  const imageUrl = button.getAttribute('data-product-image');
+  
+  showEditForm(id, type, name, price, stock, description, imageUrl);
+}
+
+function hideEditForm() {
+  document.getElementById('edit-product-form').style.display = 'none';
+}
+</script>
+
+<style>
+  .owner-inventory-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .inventory-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .inventory-header h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+  }
+
+  .inventory-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .stat-card {
+    background: rgba(255,255,255,0.1);
+    padding: 1rem;
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  .stat-card h3 {
+    font-size: 1.5rem;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .stat-card.warning {
+    background: rgba(255,193,7,0.2);
+  }
+
+  .inventory-controls {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .search-form {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .search-input {
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    min-width: 250px;
+  }
+
+  .btn-search, .btn-add, .btn-secondary {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    font-weight: 600;
+  }
+
+  .btn-search {
+    background: #007bff;
+    color: white;
+  }
+
+  .btn-add {
+    background: #28a745;
+    color: white;
+  }
+
+  .btn-secondary {
+    background: #6c757d;
+    color: white;
+  }
+
+  .product-form {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 2px solid #e9ecef;
+  }
+
+  .product-form h3 {
+    margin-top: 0;
+    color: #495057;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .product-form input, .product-form select, .product-form textarea {
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+
+  .product-form textarea {
+    grid-column: 1 / -1;
+    resize: vertical;
+  }
+
+  .form-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .btn-save, .btn-cancel {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .btn-save {
+    background: #28a745;
+    color: white;
+  }
+
+  .btn-cancel {
+    background: #6c757d;
+    color: white;
+  }
+
+  .products-list {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .product-item {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+  }
+
+  .product-item.low-stock {
+    border-left: 4px solid #ff6b6b;
+  }
+
+  .product-info {
+    display: flex;
+    gap: 1rem;
+    flex-grow: 1;
+  }
+
+  .product-image {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+
+  .product-image.placeholder {
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #6c757d;
+  }
+
+  .product-details h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+  }
+
+  .product-type {
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    display: inline-block;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .price {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #28a745;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .stock {
+    font-weight: 500;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .stock.low {
+    color: #dc3545;
+  }
+
+  .warning {
+    background: #ff6b6b;
+    color: white;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    margin-left: 0.5rem;
+  }
+
+  .description {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .product-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 250px;
+  }
+
+  .stock-form {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+  }
+
+  .stock-update {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .stock-update label {
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .stock-update input {
+    width: 80px;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+  }
+
+  .btn-update-stock {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem;
+    cursor: pointer;
+  }
+
+  .action-btns {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-edit, .btn-delete {
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .btn-edit {
+    background: #ffc107;
+    color: #212529;
+  }
+
+  .btn-delete {
+    background: #dc3545;
+    color: white;
+  }
+
+  .no-products {
+    text-align: center;
+    padding: 3rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .error-message {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .inventory-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+
+    .product-item {
+      flex-direction: column;
+    }
+
+    .product-actions {
+      min-width: auto;
+    }
+  }
+</style>
+{% endblock %}
