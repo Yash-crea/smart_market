@@ -365,6 +365,12 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
+# CSRF Trusted Origins (for Railway deployment)
+CSRF_TRUSTED_ORIGINS = [
+    'https://web-production-5d00e.up.railway.app',
+    'https://*.railway.app',
+]
+
 # Logging Configuration
 LOGGING = {
     'version': 1,
