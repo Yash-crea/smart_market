@@ -7,7 +7,6 @@ django-filter==25.2
 django-redis==6.0.0
 
 # Database
-mysqlclient==2.2.8
 redis==7.3.0
 
 # Authentication & Security
