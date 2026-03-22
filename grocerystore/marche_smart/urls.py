@@ -32,7 +32,6 @@ urlpatterns = [
     path('owner/export_excel/', views.export_dashboard_excel, name='export_dashboard_excel'),
     path('staff/', views.staff_dashboard, name='staff_dashboard'),
     path('customer/', views.customer_dashboard, name='customer_dashboard'),
-    path('customer/powerbi/', views.powerbi_dashboard_page, name='powerbi_dashboard'),
     path('cart/', views.cart, name='cart'),
     path('cart/count/', views.cart_count, name='cart_count'),
     path('cart/add/<int:product_id>/', views.add_to_cart, name='add_to_cart'),

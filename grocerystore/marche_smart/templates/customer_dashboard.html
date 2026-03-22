@@ -181,6 +181,7 @@
             <span style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:3px 10px;background:linear-gradient(135deg,#f5c518,#f7d94e);color:#222;border-radius:12px;font-size:.7rem;font-weight:700;letter-spacing:.5px;">
               ⚡ Power BI
             </span>
+            <span id="pbi-live" style="font-size:.7rem;color:#28a745;margin-left:6px;">● Live</span>
           </div>
           <div id="chartContainer" style="position:relative; width:100%; max-width:700px; margin:0 auto;">
             <div id="chartLoading" style="text-align:center;padding:3rem;">
@@ -209,11 +210,13 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
         <script>
         (function(){
+          var customerChart = null;
           function getCookie(name){
             var v = document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');
             return v ? v.pop() : '';
           }
 
+          function loadCustomerPBI(){
           fetch('/api/v1/powerbi/customer-dashboard/', {
             method: 'GET',
             credentials: 'same-origin',
@@ -261,7 +264,8 @@
             document.getElementById('chartLoading').style.display = 'none';
             var canvas = document.getElementById('spendingChart');
             canvas.style.display = 'block';
-            new Chart(canvas.getContext('2d'), {
+            if(customerChart) customerChart.destroy();
+            customerChart = new Chart(canvas.getContext('2d'), {
               type: 'bar',
               data: {
                 labels: labels,
@@ -332,7 +336,10 @@
             document.getElementById('topProduct').textContent = 'Unavailable';
             document.getElementById('shoppingPattern').textContent = 'Unavailable';
           });
-        })();
+        }
+
+        loadCustomerPBI();
+        setInterval(loadCustomerPBI, 60000);
         </script>
       </div>
 
@@ -415,16 +422,12 @@
       <div class="section-card">
         <h3>📊 Analytics & Reports</h3>
         <div class="quick-actions">
-          <a href="{% url 'smart_market:powerbi_dashboard' %}" class="action-btn" style="text-decoration:none;">
-            <span class="action-icon">⚡</span>
-            <span>Open Power BI Dashboard</span>
-          </a>
           <button onclick="showPowerBIInfo()" class="action-btn">
-            <span class="action-icon">🔗</span>
-            <span>API Connection</span>
+            <span class="action-icon">📊</span>
+            <span>Connect Power BI</span>
           </button>
         </div>
-        <p style="font-size: 0.8rem; color: #888; margin-top: 0.75rem; padding: 0 0.5rem;">View your full analytics dashboard powered by Power BI.</p>
+        <p style="font-size: 0.8rem; color: #888; margin-top: 0.75rem; padding: 0 0.5rem;">Connect Power BI for live dashboards.</p>
       </div>
 
       <!-- Account Summary -->

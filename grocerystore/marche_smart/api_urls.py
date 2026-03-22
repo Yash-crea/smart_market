@@ -59,8 +59,9 @@ urlpatterns = [
     
     # ============= POWER BI INTEGRATION ENDPOINTS =============
     # Customer Power BI remains available via authenticated API access.
-    # Owner Power BI routes stay disabled in favor of Excel export.
+    # Owner Power BI dashboard with auto-refresh support.
     path('v1/powerbi/customer-dashboard/', advanced_api_views.powerbi_customer_dashboard, name='powerbi_customer_dashboard'),
+    path('v1/powerbi/owner-dashboard/', advanced_api_views.powerbi_owner_dashboard, name='powerbi_owner_dashboard'),
     
     # ============= ADVANCED ML RECOMMENDATION & FORECASTING =============
     path('v1/forecast/30day/<int:product_id>/', advanced_api_views.get_30day_demand_forecast, name='advanced_forecast_30day'),

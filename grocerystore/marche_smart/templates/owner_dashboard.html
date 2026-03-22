@@ -251,7 +251,153 @@
   </div>
   {% endif %}
 
+  <!-- ===== POWER BI LIVE ANALYTICS ===== -->
+  <div class="dashboard-section" id="powerbi-section">
+    <div class="section-header">
+      <h3 style="display:flex;align-items:center;gap:8px;">
+        📊 Power BI Live Analytics
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:linear-gradient(135deg,#f5c518,#f7d94e);color:#222;border-radius:12px;font-size:.7rem;font-weight:700;letter-spacing:.5px;">⚡ Power BI</span>
+        <span id="pbi-status" style="font-size:.75rem;color:#28a745;margin-left:auto;">● Live</span>
+      </h3>
+    </div>
+    <p style="color:#888;font-size:.85rem;margin-bottom:1rem;">Auto-refreshes every 60 seconds &mdash; <span id="pbi-updated">Loading...</span></p>
+
+    <div class="pbi-grid">
+      <!-- Revenue Chart -->
+      <div class="pbi-card">
+        <h4>Daily Revenue (30 Days)</h4>
+        <div id="revenueLoading" style="text-align:center;padding:2rem;color:#888;">📊 Loading...</div>
+        <canvas id="revenueChart" height="200" style="display:none;"></canvas>
+      </div>
+      <!-- Order Status Pie -->
+      <div class="pbi-card">
+        <h4>Order Status Breakdown</h4>
+        <div id="orderPieLoading" style="text-align:center;padding:2rem;color:#888;">📊 Loading...</div>
+        <canvas id="orderPieChart" height="200" style="display:none;"></canvas>
+      </div>
+      <!-- Top Products Bar -->
+      <div class="pbi-card">
+        <h4>Top Products by Quantity</h4>
+        <div id="topProductsLoading" style="text-align:center;padding:2rem;color:#888;">📊 Loading...</div>
+        <canvas id="topProductsChart" height="200" style="display:none;"></canvas>
+      </div>
+      <!-- KPI Live Cards -->
+      <div class="pbi-card">
+        <h4>Live KPIs</h4>
+        <div class="pbi-kpis">
+          <div class="pbi-kpi"><span id="kpi-revenue">--</span><small>Total Revenue</small></div>
+          <div class="pbi-kpi"><span id="kpi-orders">--</span><small>Total Orders</small></div>
+          <div class="pbi-kpi"><span id="kpi-aov">--</span><small>Avg Order Value</small></div>
+          <div class="pbi-kpi"><span id="kpi-conversion">--</span><small>Conversion Rate</small></div>
+          <div class="pbi-kpi"><span id="kpi-users">--</span><small>Active Users (30d)</small></div>
+          <div class="pbi-kpi"><span id="kpi-stock">--</span><small>Products In Stock</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  var revenueChartObj = null, orderPieObj = null, topProductsObj = null;
+
+  function getCookie(name){
+    var v = document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+  }
+
+  function loadOwnerPBI(){
+    document.getElementById('pbi-status').textContent = '⟳ Refreshing...';
+    document.getElementById('pbi-status').style.color = '#f0ad4e';
+
+    fetch('/api/v1/powerbi/owner-dashboard/', {
+      method: 'GET', credentials: 'same-origin',
+      headers: { 'Accept': 'application/json', 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      document.getElementById('pbi-status').textContent = '● Live';
+      document.getElementById('pbi-status').style.color = '#28a745';
+      var now = new Date();
+      document.getElementById('pbi-updated').textContent = 'Last updated ' + now.toLocaleTimeString();
+
+      // --- KPIs ---
+      var om = data.order_metrics || {};
+      var um = data.user_metrics || {};
+      var im = data.inventory_metrics || {};
+      document.getElementById('kpi-revenue').textContent = 'Rs ' + (om.total_revenue||0).toLocaleString();
+      document.getElementById('kpi-orders').textContent = (om.total_orders||0).toLocaleString();
+      document.getElementById('kpi-aov').textContent = 'Rs ' + (om.average_order_value||0).toFixed(0);
+      document.getElementById('kpi-conversion').textContent = (om.conversion_rate||0).toFixed(1) + '%';
+      document.getElementById('kpi-users').textContent = (um.active_users_30d||0).toLocaleString();
+      var inStock = (im.regular_products ? im.regular_products.in_stock : 0) + (im.smart_products ? im.smart_products.in_stock : 0);
+      document.getElementById('kpi-stock').textContent = inStock;
+
+      // --- Revenue Line Chart ---
+      var daily = data.daily_orders_30d || [];
+      daily = daily.slice().reverse();
+      var rLabels = daily.map(function(d){ return d.date.slice(5); });
+      var rData = daily.map(function(d){ return d.orders_count; });
+      document.getElementById('revenueLoading').style.display = 'none';
+      var rc = document.getElementById('revenueChart'); rc.style.display = 'block';
+      if(revenueChartObj) revenueChartObj.destroy();
+      revenueChartObj = new Chart(rc.getContext('2d'), {
+        type: 'line',
+        data: { labels: rLabels, datasets: [{
+          label: 'Orders', data: rData,
+          borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)',
+          tension: 0.3, fill: true, pointRadius: 2
+        }]},
+        options: { responsive: true, plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, title: { display: true, text: 'Orders' } } } }
+      });
+
+      // --- Order Status Pie ---
+      document.getElementById('orderPieLoading').style.display = 'none';
+      var pc = document.getElementById('orderPieChart'); pc.style.display = 'block';
+      if(orderPieObj) orderPieObj.destroy();
+      orderPieObj = new Chart(pc.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Completed', 'Pending', 'Cancelled'],
+          datasets: [{ data: [om.completed_orders||0, om.pending_orders||0, om.cancelled_orders||0],
+            backgroundColor: ['#28a745','#ffc107','#dc3545'], borderWidth: 2 }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } } }
+      });
+
+      // --- Top Products Bar ---
+      var tp = data.top_products || [];
+      document.getElementById('topProductsLoading').style.display = 'none';
+      var tpc = document.getElementById('topProductsChart'); tpc.style.display = 'block';
+      if(topProductsObj) topProductsObj.destroy();
+      topProductsObj = new Chart(tpc.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: tp.map(function(p){ return (p.product_name||'').substring(0,20); }),
+          datasets: [{
+            label: 'Qty Sold', data: tp.map(function(p){ return p.total_quantity||0; }),
+            backgroundColor: 'rgba(118,75,162,0.7)', borderColor: '#764ba2', borderWidth: 1, borderRadius: 4
+          }]
+        },
+        options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true } } }
+      });
+    })
+    .catch(function(err){
+      console.error('Power BI owner API error:', err);
+      document.getElementById('pbi-status').textContent = '● Offline';
+      document.getElementById('pbi-status').style.color = '#dc3545';
+      document.getElementById('pbi-updated').textContent = 'Failed to load data';
+    });
+  }
+
+  loadOwnerPBI();
+  setInterval(loadOwnerPBI, 60000);
+})();
+</script>
 
 <style>
   /* ---- Layout ---- */
@@ -347,9 +493,20 @@
   .btn-mark-read { background:#28a745; color:#fff; border:none; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:.9rem; display:flex; align-items:center; justify-content:center; }
   .btn-mark-read:hover { background:#218838; }
 
+  /* ---- Power BI Section ---- */
+  .pbi-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  .pbi-card { background:#fff; border-radius:8px; padding:1.2rem; box-shadow:0 2px 8px rgba(0,0,0,.07); border-top:3px solid #f5c518; }
+  .pbi-card h4 { margin:0 0 .8rem; font-size:.95rem; color:#555; }
+  .pbi-kpis { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.8rem; }
+  .pbi-kpi { text-align:center; padding:.6rem; background:#f9f9f9; border-radius:6px; }
+  .pbi-kpi span { display:block; font-size:1.3rem; font-weight:700; color:#333; }
+  .pbi-kpi small { color:#777; font-size:.75rem; }
+
   @media (max-width:768px) {
     .dashboard-cards { grid-template-columns:1fr 1fr; }
     .dashboard-actions { flex-direction:column; }
+    .pbi-grid { grid-template-columns:1fr; }
+    .pbi-kpis { grid-template-columns:1fr 1fr; }
   }
 </style>
 
