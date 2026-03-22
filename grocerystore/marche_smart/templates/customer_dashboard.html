@@ -177,37 +177,163 @@
         <div class="spending-chart">
           <div class="chart-header">
             <h4>Monthly Spending Trend</h4>
-            <span class="trend-indicator positive">📈 +12% vs last month</span>
+            <span id="trendIndicator" class="trend-indicator neutral">⏳ Loading...</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:3px 10px;background:linear-gradient(135deg,#f5c518,#f7d94e);color:#222;border-radius:12px;font-size:.7rem;font-weight:700;letter-spacing:.5px;">
+              ⚡ Power BI
+            </span>
           </div>
-          <div class="mini-chart">
-            <div class="chart-bars">
-              <div class="bar" style="height: 60%;" title="Jan: Rs 1200"></div>
-              <div class="bar" style="height: 45%;" title="Feb: Rs 900"></div>
-              <div class="bar" style="height: 80%;" title="Mar: Rs 1600"></div>
-              <div class="bar" style="height: 70%;" title="Apr: Rs 1400"></div>
-              <div class="bar" style="height: 90%;" title="May: Rs 1800"></div>
-              <div class="bar" style="height: 95%;" title="Jun: Rs 1900"></div>
+          <div id="chartContainer" style="position:relative; width:100%; max-width:700px; margin:0 auto;">
+            <div id="chartLoading" style="text-align:center;padding:3rem;">
+              <div style="font-size:2rem;margin-bottom:.5rem;">📊</div>
+              <p style="color:#666;">Fetching Power BI data...</p>
             </div>
-            <div class="chart-labels">
-              <span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span>
-            </div>
+            <canvas id="spendingChart" height="220" style="display:none;"></canvas>
           </div>
         </div>
-        
+
         <div class="spending-insights">
           <div class="insight-item">
             <span class="insight-icon">🛒</span>
             <div class="insight-text">
-              <strong>Most Purchased:</strong> Fruits & Vegetables
+              <strong>Most Purchased:</strong> <span id="topProduct">Loading...</span>
             </div>
           </div>
           <div class="insight-item">
             <span class="insight-icon">📅</span>
             <div class="insight-text">
-              <strong>Shopping Pattern:</strong> Weekly shopper
+              <strong>Shopping Pattern:</strong> <span id="shoppingPattern">Loading...</span>
             </div>
           </div>
         </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <script>
+        (function(){
+          function getCookie(name){
+            var v = document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');
+            return v ? v.pop() : '';
+          }
+
+          fetch('/api/v1/powerbi/customer-dashboard/', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+              'Accept': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken')
+            }
+          })
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            // --- Monthly spending chart ---
+            var monthly = data.spending_patterns && data.spending_patterns.monthly_spending_12m
+                        ? data.spending_patterns.monthly_spending_12m : [];
+            // API returns newest-first; reverse to oldest-first then take last 6
+            var sliced = monthly.slice().reverse().slice(-6);
+            var labels = sliced.map(function(m){ return m.month.slice(5); }); // "MM"
+            var monthNames = {
+              '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun',
+              '07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'
+            };
+            labels = labels.map(function(l){ return monthNames[l] || l; });
+            var amounts = sliced.map(function(m){ return m.total_spent; });
+            var orders  = sliced.map(function(m){ return m.order_count; });
+
+            // Trend indicator
+            var indicator = document.getElementById('trendIndicator');
+            if(amounts.length >= 2 && amounts[amounts.length-2] > 0){
+              var trend = ((amounts[amounts.length-1] - amounts[amounts.length-2]) / amounts[amounts.length-2] * 100).toFixed(1);
+              if(trend > 0){
+                indicator.className = 'trend-indicator positive';
+                indicator.textContent = '📈 +' + trend + '% vs last month';
+              } else if(trend < 0){
+                indicator.className = 'trend-indicator negative';
+                indicator.textContent = '📉 ' + trend + '% vs last month';
+              } else {
+                indicator.className = 'trend-indicator neutral';
+                indicator.textContent = '➡️ No change vs last month';
+              }
+            } else {
+              indicator.className = 'trend-indicator neutral';
+              indicator.textContent = '➡️ Not enough data yet';
+            }
+
+            // Render chart
+            document.getElementById('chartLoading').style.display = 'none';
+            var canvas = document.getElementById('spendingChart');
+            canvas.style.display = 'block';
+            new Chart(canvas.getContext('2d'), {
+              type: 'bar',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: 'Spending (Rs)',
+                  data: amounts,
+                  backgroundColor: 'rgba(43, 138, 62, 0.7)',
+                  borderColor: 'rgba(43, 138, 62, 1)',
+                  borderWidth: 1,
+                  borderRadius: 6,
+                  yAxisID: 'y'
+                },{
+                  label: 'Orders',
+                  data: orders,
+                  type: 'line',
+                  borderColor: '#7c3aed',
+                  backgroundColor: 'rgba(124,58,237,0.1)',
+                  tension: 0.3,
+                  pointRadius: 4,
+                  pointBackgroundColor: '#7c3aed',
+                  yAxisID: 'y1',
+                  fill: true
+                }]
+              },
+              options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                  legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } },
+                  tooltip: {
+                    callbacks: {
+                      label: function(c){
+                        if(c.dataset.label==='Spending (Rs)') return 'Rs ' + c.parsed.y.toFixed(2);
+                        return c.parsed.y + ' orders';
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  y:  { beginAtZero:true, title:{display:true,text:'Spending (Rs)'}, grid:{color:'rgba(0,0,0,0.05)'} },
+                  y1: { beginAtZero:true, position:'right', title:{display:true,text:'Orders'}, grid:{drawOnChartArea:false} }
+                }
+              }
+            });
+
+            // --- Insights ---
+            var favs = data.spending_patterns && data.spending_patterns.favorite_products
+                     ? data.spending_patterns.favorite_products : [];
+            document.getElementById('topProduct').textContent =
+              favs.length ? favs[0].product_name : 'No purchases yet';
+
+            var peakDay = data.spending_patterns && data.spending_patterns.peak_shopping_day
+                        ? data.spending_patterns.peak_shopping_day : null;
+            var totalOrd = data.order_analytics ? data.order_analytics.total_orders : 0;
+            if(totalOrd >= 4 && peakDay){
+              document.getElementById('shoppingPattern').textContent = 'Usually shops on ' + peakDay + 's';
+            } else if(totalOrd >= 1){
+              document.getElementById('shoppingPattern').textContent = 'Occasional shopper';
+            } else {
+              document.getElementById('shoppingPattern').textContent = 'New customer';
+            }
+          })
+          .catch(function(err){
+            console.error('Power BI API error:', err);
+            document.getElementById('chartLoading').innerHTML =
+              '<p style="color:#e53e3e;">Unable to load Power BI data. Please try again later.</p>';
+            document.getElementById('trendIndicator').textContent = '⚠️ Data unavailable';
+            document.getElementById('topProduct').textContent = 'Unavailable';
+            document.getElementById('shoppingPattern').textContent = 'Unavailable';
+          });
+        })();
+        </script>
       </div>
 
       <!-- Wishlist Section -->

@@ -866,7 +866,7 @@ def customer_dashboard(request):
         # Recent products for recommendations
         available_products = list(Product.objects.filter(in_stock=True)[:6]) + \
                            list(SmartProducts.objects.exclude(stock_quantity=0)[:6])
-        
+
         context = {
             'customer_name': request.user.get_full_name() or request.user.username,
             'customer_email': request.user.email,
