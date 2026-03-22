@@ -745,7 +745,7 @@ def powerbi_owner_dashboard(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def powerbi_customer_dashboard(request):
     """
     Power BI optimized Customer Dashboard Analytics
@@ -760,36 +760,23 @@ def powerbi_customer_dashboard(request):
         from django.db.models import Q, Count, Sum, Avg, F
         from .models import Product, SmartProducts, Cart, Order, OrderItem, CartItem, Customers
         
-        # Note: Authentication temporarily disabled for testing
-        # For production, re-enable customer access verification
-        
-        # === USER PROFILE === (Test data when no authentication)
-        if hasattr(request, 'user') and request.user.is_authenticated:
-            user_profile = {
-                'user_id': request.user.id,
-                'username': request.user.username,
-                'full_name': request.user.get_full_name() or request.user.username,
-                'email': request.user.email,
-                'member_since': request.user.date_joined.isoformat(),
-                'last_login': request.user.last_login.isoformat() if request.user.last_login else None
-            }
-        else:
-            user_profile = {
-                'user_id': 1,
-                'username': 'demo_customer',
-                'full_name': 'Demo Customer',
-                'email': 'demo@customer.com',
-                'member_since': '2024-01-01T00:00:00Z',
-                'last_login': '2024-03-08T10:00:00Z'
-            }
+        if request.user.groups.filter(name__in=['Owner', 'Staff']).exists():
+            return Response({
+                'error': 'Customer dashboard access is restricted to customer accounts.'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        user_profile = {
+            'user_id': request.user.id,
+            'username': request.user.username,
+            'full_name': request.user.get_full_name() or request.user.username,
+            'email': request.user.email,
+            'member_since': request.user.date_joined.isoformat(),
+            'last_login': request.user.last_login.isoformat() if request.user.last_login else None
+        }
         
         # === ORDER ANALYTICS ===
         try:
-            if hasattr(request, 'user') and request.user.is_authenticated:
-                customer_orders = Order.objects.filter(user=request.user).order_by('-created_at')
-            else:
-                # Demo data when no authentication
-                customer_orders = Order.objects.all()[:10]  # Show sample orders for demo
+            customer_orders = Order.objects.filter(user=request.user).order_by('-created_at')
             
             total_orders = customer_orders.count()
             
@@ -816,21 +803,15 @@ def powerbi_customer_dashboard(request):
             recent_orders = []
         
         # === CART ANALYTICS ===
-        if hasattr(request, 'user') and request.user.is_authenticated:
-            try:
-                cart, created = Cart.objects.get_or_create(user=request.user)
-                cart_items = cart.items.all() if hasattr(cart, 'items') else []
-                cart_total = cart.total_amount if hasattr(cart, 'total_amount') else 0
-                cart_item_count = cart.total_items if hasattr(cart, 'total_items') else len(cart_items)
-            except:
-                cart_items = []
-                cart_total = 0
-                cart_item_count = 0
-        else:
-            # Demo cart data
+        try:
+            cart, created = Cart.objects.get_or_create(user=request.user)
+            cart_items = cart.items.all() if hasattr(cart, 'items') else []
+            cart_total = cart.total_amount if hasattr(cart, 'total_amount') else 0
+            cart_item_count = cart.total_items if hasattr(cart, 'total_items') else len(cart_items)
+        except:
             cart_items = []
-            cart_total = 125.50
-            cart_item_count = 3
+            cart_total = 0
+            cart_item_count = 0
         
         # === PURCHASE PATTERNS ===
         try:
@@ -863,11 +844,7 @@ def powerbi_customer_dashboard(request):
         # === PRODUCT PREFERENCES ===
         try:
             # Most purchased products
-            if hasattr(request, 'user') and request.user.is_authenticated:
-                order_items = OrderItem.objects.filter(order__user=request.user)
-            else:
-                # Demo data for testing
-                order_items = OrderItem.objects.all()[:20]
+            order_items = OrderItem.objects.filter(order__user=request.user)
             
             if order_items.exists():
                 favorite_products = order_items.values('product__name').annotate(
@@ -924,17 +901,16 @@ def powerbi_customer_dashboard(request):
         points_earned = total_orders * 10  # Simple points system
         next_tier_threshold = 6 if loyalty_status == 'Standard' else 20
         
-        member_since_days = 365  # Default for demo
-        orders_this_month = 3    # Default for demo
-        
-        if hasattr(request, 'user') and request.user.is_authenticated:
-            try:
-                member_since_days = (timezone.now().date() - request.user.date_joined.date()).days
-                orders_this_month = customer_orders.filter(
-                    created_at__gte=timezone.now().replace(day=1)
-                ).count()
-            except:
-                pass
+        member_since_days = 365
+        orders_this_month = 0
+
+        try:
+            member_since_days = (timezone.now().date() - request.user.date_joined.date()).days
+            orders_this_month = customer_orders.filter(
+                created_at__gte=timezone.now().replace(day=1)
+            ).count()
+        except:
+            pass
         
         # Construct customer dashboard response
         customer_data = {

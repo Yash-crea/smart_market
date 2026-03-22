@@ -58,9 +58,9 @@ urlpatterns = [
     path('v1/ssh/tunnel/', ssh_api_views.ssh_tunnel, name='ssh_tunnel'),
     
     # ============= POWER BI INTEGRATION ENDPOINTS =============
-    # DISABLED: Power BI now uses Excel export instead of web API endpoints.
-    # Owner downloads Excel from /owner/export_excel/ for Power BI data source.
-    # All 7 Power BI API routes removed for security.
+    # Customer Power BI remains available via authenticated API access.
+    # Owner Power BI routes stay disabled in favor of Excel export.
+    path('v1/powerbi/customer-dashboard/', advanced_api_views.powerbi_customer_dashboard, name='powerbi_customer_dashboard'),
     
     # ============= ADVANCED ML RECOMMENDATION & FORECASTING =============
     path('v1/forecast/30day/<int:product_id>/', advanced_api_views.get_30day_demand_forecast, name='advanced_forecast_30day'),

@@ -285,6 +285,18 @@
         </div>
       </div>
 
+      <!-- Power BI Analytics -->
+      <div class="section-card">
+        <h3>📊 Analytics & Reports</h3>
+        <div class="quick-actions">
+          <button onclick="showPowerBIInfo()" class="action-btn">
+            <span class="action-icon">📊</span>
+            <span>Connect Power BI</span>
+          </button>
+        </div>
+        <p style="font-size: 0.8rem; color: #888; margin-top: 0.75rem; padding: 0 0.5rem;">Connect Power BI for live dashboards.</p>
+      </div>
+
       <!-- Account Summary -->
       <div class="section-card account-summary">
         <h3>📈 Account Summary</h3>
@@ -304,6 +316,44 @@
     </div>
   </div>
 </section>
+
+<!-- Power BI Connection Modal -->
+<div id="powerbi-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:2rem; max-width:560px; width:90%; margin:auto; margin-top:10vh; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
+    <button onclick="closePowerBIInfo()" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#666;">&times;</button>
+    <h2 style="margin-bottom:1rem; color:#2b8a3e;">📊 Connect Power BI</h2>
+    <p style="margin-bottom:1rem; color:#555;">Use this endpoint in Power BI Desktop to get your live dashboard data:</p>
+    <div style="background:#f5f5f5; border-radius:8px; padding:1rem; margin-bottom:1rem; font-family:monospace; font-size:0.85rem; word-break:break-all;">
+      <strong>URL:</strong><br>
+      <span id="pbi-url">{{ request.scheme }}://{{ request.get_host }}/api/v1/powerbi/customer-dashboard/</span>
+    </div>
+    <div style="background:#f5f5f5; border-radius:8px; padding:1rem; margin-bottom:1rem; font-family:monospace; font-size:0.85rem;">
+      <strong>Headers:</strong><br>
+      Authorization: Token &lt;your_token&gt;<br>
+      Content-Type: application/json
+    </div>
+    <p style="font-size:0.85rem; color:#666; margin-bottom:1rem;"><strong>Steps:</strong> Open Power BI &rarr; Get Data &rarr; Web &rarr; Advanced &rarr; paste the URL and headers above &rarr; expand JSON tables &rarr; build visuals.</p>
+    <div style="display:flex; gap:0.75rem;">
+      <button onclick="copyPBIUrl()" style="flex:1; padding:0.6rem; background:#2b8a3e; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">📋 Copy URL</button>
+      <button onclick="closePowerBIInfo()" style="flex:1; padding:0.6rem; background:#eee; color:#333; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showPowerBIInfo() {
+  document.getElementById('powerbi-modal').style.display = 'flex';
+}
+function closePowerBIInfo() {
+  document.getElementById('powerbi-modal').style.display = 'none';
+}
+function copyPBIUrl() {
+  var url = document.getElementById('pbi-url').textContent;
+  navigator.clipboard.writeText(url).then(function() {
+    alert('URL copied to clipboard!');
+  });
+}
+</script>
 
 <style>
 .customer-dashboard {

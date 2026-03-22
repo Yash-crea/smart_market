@@ -1967,6 +1967,145 @@ def export_dashboard_excel(request):
     return response
 
 
+@login_required
+def export_customer_excel(request):
+    """Export the logged-in customer's own data to Excel for Power BI."""
+    # Block owner / staff access
+    if request.user.groups.filter(name__in=['Owner', 'Staff']).exists():
+        messages.error(request, "This export is available for customer accounts only.")
+        return redirect('smart_market:home')
+
+    from .models import Order, OrderItem, Payment, Cart, CartItem
+
+    wb = openpyxl.Workbook()
+
+    # ── 1. Profile Summary ────────────────────────────────
+    ws = wb.active
+    ws.title = 'Profile Summary'
+    ws.append(['Metric', 'Value'])
+
+    customer_orders = Order.objects.filter(user=request.user).order_by('-created_at')
+    total_orders = customer_orders.count()
+    total_spent = float(customer_orders.aggregate(s=Sum('total_amount'))['s'] or 0)
+    avg_order = (total_spent / total_orders) if total_orders > 0 else 0
+    pending = customer_orders.filter(status='pending').count()
+    completed = customer_orders.filter(status__in=['completed', 'delivered']).count()
+    cancelled = customer_orders.filter(status='cancelled').count()
+    loyalty = 'Premium' if total_orders > 5 else 'Standard'
+    member_days = (datetime.now().date() - request.user.date_joined.date()).days
+
+    summary_rows = [
+        ('Customer Name', request.user.get_full_name() or request.user.username),
+        ('Email', request.user.email),
+        ('Member Since', request.user.date_joined.strftime('%Y-%m-%d')),
+        ('Membership Days', str(member_days)),
+        ('Loyalty Status', loyalty),
+        ('Total Orders', str(total_orders)),
+        ('Total Spent (Rs)', str(round(total_spent, 2))),
+        ('Average Order Value', str(round(avg_order, 2))),
+        ('Pending Orders', str(pending)),
+        ('Completed Orders', str(completed)),
+        ('Cancelled Orders', str(cancelled)),
+        ('Export Date', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+    ]
+    for row in summary_rows:
+        ws.append(list(row))
+    _style_header_row(ws, 2)
+    _auto_width(ws)
+    _make_table(ws, 'CustomerProfile')
+
+    # ── 2. Orders ─────────────────────────────────────────
+    ws2 = wb.create_sheet('My Orders')
+    ord_headers = ['Order #', 'Status', 'Subtotal', 'Tax', 'Shipping',
+                   'Total', 'Shipping Address', 'City', 'Created']
+    ws2.append(ord_headers)
+    for o in customer_orders:
+        ws2.append([
+            o.order_number, _text(o.status),
+            _safe(o.subtotal) or 0, _safe(o.tax_amount) or 0,
+            _safe(o.shipping_cost) or 0, _safe(o.total_amount) or 0,
+            _text(o.shipping_address), _text(o.shipping_city),
+            _safe(o.created_at) or 'N/A',
+        ])
+    _style_header_row(ws2, len(ord_headers))
+    _auto_width(ws2)
+    _make_table(ws2, 'MyOrders')
+
+    # ── 3. Order Items ────────────────────────────────────
+    ws3 = wb.create_sheet('Order Items')
+    oi_headers = ['Order #', 'Product Name', 'Unit Price', 'Quantity', 'Subtotal']
+    ws3.append(oi_headers)
+    for oi in OrderItem.objects.filter(order__user=request.user).select_related('order'):
+        ws3.append([
+            oi.order.order_number, _text(oi.product_name),
+            _safe(oi.unit_price) or 0, oi.quantity or 0,
+            _safe(oi.subtotal) or 0,
+        ])
+    _style_header_row(ws3, len(oi_headers))
+    _auto_width(ws3)
+    _make_table(ws3, 'MyOrderItems')
+
+    # ── 4. Payments ───────────────────────────────────────
+    ws4 = wb.create_sheet('Payments')
+    pay_headers = ['Order #', 'Method', 'Amount', 'Status', 'Created']
+    ws4.append(pay_headers)
+    for pay in Payment.objects.filter(order__user=request.user).select_related('order'):
+        ws4.append([
+            pay.order.order_number, _text(pay.payment_method),
+            _safe(pay.amount) or 0, _text(pay.status),
+            _safe(pay.created_at) or 'N/A',
+        ])
+    _style_header_row(ws4, len(pay_headers))
+    _auto_width(ws4)
+    _make_table(ws4, 'MyPayments')
+
+    # ── 5. Monthly Spending ───────────────────────────────
+    ws5 = wb.create_sheet('Monthly Spending')
+    spend_headers = ['Month', 'Orders', 'Total Spent']
+    ws5.append(spend_headers)
+    from datetime import timedelta
+    for i in range(12):
+        month_start = (datetime.now().replace(day=1) - timedelta(days=30 * i)).replace(day=1)
+        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        monthly_qs = customer_orders.filter(
+            created_at__date__gte=month_start.date(),
+            created_at__date__lte=month_end.date()
+        )
+        monthly_total = float(monthly_qs.aggregate(s=Sum('total_amount'))['s'] or 0)
+        ws5.append([month_start.strftime('%Y-%m'), monthly_qs.count(), round(monthly_total, 2)])
+    _style_header_row(ws5, len(spend_headers))
+    _auto_width(ws5)
+    _make_table(ws5, 'MonthlySpending')
+
+    # ── 6. Favorite Products ──────────────────────────────
+    ws6 = wb.create_sheet('Favorite Products')
+    fav_headers = ['Product Name', 'Times Purchased', 'Total Spent']
+    ws6.append(fav_headers)
+    favorites = (
+        OrderItem.objects.filter(order__user=request.user)
+        .values('product_name')
+        .annotate(total_qty=Sum('quantity'), total_rev=Sum('subtotal'))
+        .order_by('-total_qty')[:20]
+    )
+    for f in favorites:
+        ws6.append([
+            _text(f.get('product_name')),
+            f.get('total_qty', 0),
+            _safe(f.get('total_rev', 0)) or 0,
+        ])
+    _style_header_row(ws6, len(fav_headers))
+    _auto_width(ws6)
+    _make_table(ws6, 'FavoriteProducts')
+
+    # ── Build response ────────────────────────────────────
+    username = request.user.username
+    filename = f"customer_dashboard_{username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename={filename}'
+    wb.save(response)
+    return response
+
+
 def about(request):
     # render a dedicated About page
     return render(request, 'about.html')
