@@ -602,8 +602,12 @@ def powerbi_owner_dashboard(request):
             
             # Order status breakdown - safely handle missing status field
             pending_orders = all_orders.filter(status='pending').count()
+            processing_orders = all_orders.filter(status='processing').count()
+            shipped_orders = all_orders.filter(status='shipped').count()
+            delivered_orders = all_orders.filter(status='delivered').count()
             completed_orders = all_orders.filter(status='completed').count()
             cancelled_orders = all_orders.filter(status='cancelled').count()
+            refunded_orders = all_orders.filter(status='refunded').count()
             
             # Revenue metrics - safely handle missing total_amount
             total_revenue = 0
@@ -618,8 +622,12 @@ def powerbi_owner_dashboard(request):
         except Exception as e:
             total_orders = 0
             pending_orders = 0
+            processing_orders = 0
+            shipped_orders = 0
+            delivered_orders = 0
             completed_orders = 0
             cancelled_orders = 0
+            refunded_orders = 0
             total_revenue = 0
             recent_orders = []
         
@@ -699,8 +707,12 @@ def powerbi_owner_dashboard(request):
             'order_metrics': {
                 'total_orders': total_orders,
                 'pending_orders': pending_orders,
+                'processing_orders': processing_orders,
+                'shipped_orders': shipped_orders,
+                'delivered_orders': delivered_orders,
                 'completed_orders': completed_orders,
                 'cancelled_orders': cancelled_orders,
+                'refunded_orders': refunded_orders,
                 'completion_rate': (completed_orders / total_orders * 100) if total_orders > 0 else 0,
                 'total_revenue': total_revenue,
                 'average_order_value': avg_order_value,
