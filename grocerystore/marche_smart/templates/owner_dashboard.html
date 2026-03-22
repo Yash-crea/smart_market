@@ -316,7 +316,10 @@
       method: 'GET', credentials: 'same-origin',
       headers: { 'Accept': 'application/json', 'X-CSRFToken': getCookie('csrftoken') }
     })
-    .then(function(r){ return r.json(); })
+    .then(function(r){
+      if(!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+      return r.json();
+    })
     .then(function(data){
       document.getElementById('pbi-status').textContent = '● Live';
       document.getElementById('pbi-status').style.color = '#28a745';
