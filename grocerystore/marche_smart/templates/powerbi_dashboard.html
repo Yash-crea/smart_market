@@ -1,0 +1,638 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  :root {
+    --pbi-bg: #f3f2f1;
+    --pbi-card: #ffffff;
+    --pbi-border: #e1dfdd;
+    --pbi-accent: #2b8a3e;
+    --pbi-accent2: #7c3aed;
+    --pbi-text: #323130;
+    --pbi-muted: #605e5c;
+    --pbi-yellow: #f5c518;
+    --pbi-red: #e53e3e;
+    --pbi-blue: #0078d4;
+    --pbi-shadow: 0 1.6px 3.6px rgba(0,0,0,.08), 0 .3px .9px rgba(0,0,0,.06);
+  }
+  .pbi-wrapper {
+    background: var(--pbi-bg);
+    min-height: 100vh;
+    padding: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--pbi-text);
+  }
+  /* ── Top Bar ── */
+  .pbi-topbar {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #fff;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  .pbi-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .pbi-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: .5px;
+  }
+  .pbi-logo-badge {
+    background: var(--pbi-yellow);
+    color: #1a1a2e;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+  }
+  .pbi-topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: .9rem;
+    opacity: .9;
+  }
+  .pbi-topbar-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--pbi-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: .85rem;
+  }
+  .pbi-topbar-time {
+    font-size: .75rem;
+    opacity: .65;
+  }
+  /* ── KPI Strip ── */
+  .pbi-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 20px 28px;
+  }
+  .pbi-kpi {
+    background: var(--pbi-card);
+    border-radius: 8px;
+    padding: 18px 20px;
+    box-shadow: var(--pbi-shadow);
+    border-left: 4px solid var(--pbi-accent);
+    transition: transform .15s;
+  }
+  .pbi-kpi:hover { transform: translateY(-2px); }
+  .pbi-kpi:nth-child(2) { border-left-color: var(--pbi-blue); }
+  .pbi-kpi:nth-child(3) { border-left-color: var(--pbi-accent2); }
+  .pbi-kpi:nth-child(4) { border-left-color: var(--pbi-yellow); }
+  .pbi-kpi:nth-child(5) { border-left-color: var(--pbi-red); }
+  .pbi-kpi-label {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--pbi-muted);
+    margin-bottom: 6px;
+  }
+  .pbi-kpi-value {
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .pbi-kpi-sub {
+    font-size: .78rem;
+    color: var(--pbi-muted);
+    margin-top: 4px;
+  }
+  .pbi-kpi-trend {
+    display: inline-block;
+    font-size: .72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin-top: 6px;
+  }
+  .pbi-trend-up { background: #d3f9d8; color: #2b8a3e; }
+  .pbi-trend-down { background: #ffe3e3; color: #c92a2a; }
+  .pbi-trend-flat { background: #e9ecef; color: #495057; }
+  /* ── Grid ── */
+  .pbi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 0 28px 20px;
+  }
+  .pbi-panel {
+    background: var(--pbi-card);
+    border-radius: 8px;
+    box-shadow: var(--pbi-shadow);
+    overflow: hidden;
+  }
+  .pbi-panel-full { grid-column: 1 / -1; }
+  .pbi-panel-header {
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--pbi-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .pbi-panel-title {
+    font-size: .95rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pbi-panel-body {
+    padding: 16px 18px;
+    position: relative;
+    min-height: 200px;
+  }
+  .pbi-panel-body canvas { width: 100% !important; }
+  /* ── Table ── */
+  .pbi-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .85rem;
+  }
+  .pbi-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: #fafafa;
+    border-bottom: 2px solid var(--pbi-border);
+    font-weight: 600;
+    color: var(--pbi-muted);
+    text-transform: uppercase;
+    font-size: .72rem;
+    letter-spacing: .6px;
+  }
+  .pbi-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .pbi-table tr:hover td { background: #f9f9f9; }
+  .pbi-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: .72rem;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+  .pbi-status-completed { background: #d3f9d8; color: #2b8a3e; }
+  .pbi-status-pending { background: #fff3bf; color: #c27800; }
+  .pbi-status-cancelled { background: #ffe3e3; color: #c92a2a; }
+  /* ── Loading ── */
+  .pbi-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 16px;
+  }
+  .pbi-spinner {
+    width: 44px; height: 44px;
+    border: 4px solid var(--pbi-border);
+    border-top-color: var(--pbi-accent);
+    border-radius: 50%;
+    animation: pbi-spin .8s linear infinite;
+  }
+  @keyframes pbi-spin { to { transform: rotate(360deg); } }
+  .pbi-error {
+    text-align: center;
+    padding: 3rem;
+    color: var(--pbi-red);
+  }
+  /* ── Loyalty bar ── */
+  .pbi-progress-bg {
+    width: 100%;
+    height: 10px;
+    background: #e9ecef;
+    border-radius: 5px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .pbi-progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--pbi-accent), var(--pbi-accent2));
+    transition: width .6s ease;
+  }
+  /* ── Footer ── */
+  .pbi-footer {
+    text-align: center;
+    padding: 14px 28px;
+    font-size: .72rem;
+    color: var(--pbi-muted);
+    border-top: 1px solid var(--pbi-border);
+    background: var(--pbi-card);
+  }
+  .pbi-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--pbi-accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: .85rem;
+  }
+  .pbi-back-link:hover { text-decoration: underline; }
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .pbi-grid { grid-template-columns: 1fr; padding: 0 12px 16px; }
+    .pbi-kpi-strip { padding: 12px; gap: 10px; grid-template-columns: 1fr 1fr; }
+    .pbi-topbar { padding: 10px 14px; }
+    .pbi-kpi-value { font-size: 1.3rem; }
+  }
+  @media (max-width: 480px) {
+    .pbi-kpi-strip { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="pbi-wrapper">
+  <!-- Top Bar -->
+  <div class="pbi-topbar">
+    <div class="pbi-topbar-left">
+      <div class="pbi-logo">
+        ⚡ <span>Smart Market</span>
+        <span class="pbi-logo-badge">POWER BI</span>
+      </div>
+      <a href="{% url 'smart_market:customer_dashboard' %}" class="pbi-back-link" style="color:#ccc;font-size:.8rem;">← Back to Dashboard</a>
+    </div>
+    <div class="pbi-topbar-user">
+      <div class="pbi-topbar-avatar" id="avatarInit">—</div>
+      <div>
+        <div id="userName" style="font-weight:600;">Loading...</div>
+        <div class="pbi-topbar-time" id="reportTime"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loadingState" class="pbi-loading">
+    <div class="pbi-spinner"></div>
+    <div style="font-weight:600;">Generating Power BI Report...</div>
+    <div style="font-size:.85rem;color:var(--pbi-muted);">Fetching your personalized analytics</div>
+  </div>
+
+  <!-- Error State -->
+  <div id="errorState" class="pbi-error" style="display:none;">
+    <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+    <h3>Unable to Load Dashboard</h3>
+    <p id="errorMsg" style="margin-top:.5rem;"></p>
+    <a href="{% url 'smart_market:customer_dashboard' %}" style="display:inline-block;margin-top:1rem;padding:.6rem 1.2rem;background:var(--pbi-accent);color:#fff;border-radius:6px;text-decoration:none;">Go Back</a>
+  </div>
+
+  <!-- Dashboard Content (hidden until data loads) -->
+  <div id="dashboardContent" style="display:none;">
+    <!-- KPI Strip -->
+    <div class="pbi-kpi-strip">
+      <div class="pbi-kpi">
+        <div class="pbi-kpi-label">Total Spent</div>
+        <div class="pbi-kpi-value" id="kpiSpent">—</div>
+        <div class="pbi-kpi-sub" id="kpiAvgOrder">Avg order: —</div>
+      </div>
+      <div class="pbi-kpi">
+        <div class="pbi-kpi-label">Total Orders</div>
+        <div class="pbi-kpi-value" id="kpiOrders">—</div>
+        <div class="pbi-kpi-sub" id="kpiCompletion">Completion: —</div>
+      </div>
+      <div class="pbi-kpi">
+        <div class="pbi-kpi-label">Loyalty Status</div>
+        <div class="pbi-kpi-value" id="kpiLoyalty">—</div>
+        <div class="pbi-kpi-sub" id="kpiPoints">Points: —</div>
+      </div>
+      <div class="pbi-kpi">
+        <div class="pbi-kpi-label">Member Since</div>
+        <div class="pbi-kpi-value" id="kpiMember">—</div>
+        <div class="pbi-kpi-sub" id="kpiThisMonth">Orders this month: —</div>
+      </div>
+      <div class="pbi-kpi">
+        <div class="pbi-kpi-label">Cart Value</div>
+        <div class="pbi-kpi-value" id="kpiCart">—</div>
+        <div class="pbi-kpi-sub" id="kpiCartItems">Items: —</div>
+      </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="pbi-grid">
+      <!-- Monthly Spending Chart -->
+      <div class="pbi-panel">
+        <div class="pbi-panel-header">
+          <div class="pbi-panel-title">📈 Monthly Spending (12 Months)</div>
+        </div>
+        <div class="pbi-panel-body">
+          <canvas id="chartSpending" height="240"></canvas>
+        </div>
+      </div>
+
+      <!-- Order Status Breakdown -->
+      <div class="pbi-panel">
+        <div class="pbi-panel-header">
+          <div class="pbi-panel-title">🍩 Order Status Breakdown</div>
+        </div>
+        <div class="pbi-panel-body" style="display:flex;align-items:center;justify-content:center;">
+          <canvas id="chartStatus" height="240"></canvas>
+        </div>
+      </div>
+
+      <!-- Favorite Products -->
+      <div class="pbi-panel">
+        <div class="pbi-panel-header">
+          <div class="pbi-panel-title">⭐ Top Products by Quantity</div>
+        </div>
+        <div class="pbi-panel-body">
+          <canvas id="chartProducts" height="240"></canvas>
+        </div>
+      </div>
+
+      <!-- Loyalty Progress -->
+      <div class="pbi-panel">
+        <div class="pbi-panel-header">
+          <div class="pbi-panel-title">🏆 Loyalty & Rewards</div>
+        </div>
+        <div class="pbi-panel-body" id="loyaltyPanel">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <!-- Recent Orders Table -->
+      <div class="pbi-panel pbi-panel-full">
+        <div class="pbi-panel-header">
+          <div class="pbi-panel-title">📋 Recent Orders</div>
+        </div>
+        <div class="pbi-panel-body" style="padding:0;">
+          <table class="pbi-table">
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              <tr><td colspan="4" style="text-align:center;padding:2rem;color:#999;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="pbi-panel pbi-panel-full">
+        <div class="pbi-panel-header">
+          <div class="pbi-panel-title">🎯 Recommended For You</div>
+        </div>
+        <div class="pbi-panel-body" id="recsPanel">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="pbi-footer">
+      Report generated on <span id="footerTime">—</span> &nbsp;|&nbsp;
+      Powered by <strong>Smart Market Power BI Engine v1.0</strong> &nbsp;|&nbsp;
+      Data refreshes on every page load
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  function getCookie(n){var v=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return v?v.pop():'';}
+
+  var apiUrl = '/api/v1/powerbi/customer-dashboard/';
+
+  fetch(apiUrl, {
+    method: 'GET',
+    credentials: 'same-origin',
+    headers: {'Accept':'application/json','X-CSRFToken':getCookie('csrftoken')}
+  })
+  .then(function(r){
+    if(!r.ok) throw new Error('API returned ' + r.status);
+    return r.json();
+  })
+  .then(function(d){
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('dashboardContent').style.display = 'block';
+    renderDashboard(d);
+  })
+  .catch(function(err){
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorState').style.display = 'block';
+    document.getElementById('errorMsg').textContent = err.message || 'Unknown error';
+  });
+
+  function renderDashboard(d){
+    var profile = d.user_profile || {};
+    var orders = d.order_analytics || {};
+    var cart = d.cart_analytics || {};
+    var spending = d.spending_patterns || {};
+    var loyalty = d.loyalty_metrics || {};
+    var recent = d.recent_orders || [];
+    var recs = d.recommendations || {};
+
+    // ── Top bar ──
+    var initials = (profile.full_name || '?').split(' ').map(function(w){return w[0];}).join('').toUpperCase().slice(0,2);
+    document.getElementById('avatarInit').textContent = initials;
+    document.getElementById('userName').textContent = profile.full_name || profile.username || 'Customer';
+    document.getElementById('reportTime').textContent = 'Report: ' + new Date(d.report_generated).toLocaleString();
+    document.getElementById('footerTime').textContent = new Date(d.report_generated).toLocaleString();
+
+    // ── KPIs ──
+    document.getElementById('kpiSpent').textContent = 'Rs ' + (orders.total_spent || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('kpiAvgOrder').textContent = 'Avg order: Rs ' + (orders.average_order_value || 0).toFixed(2);
+    document.getElementById('kpiOrders').textContent = orders.total_orders || 0;
+    document.getElementById('kpiCompletion').textContent = 'Completion: ' + (orders.completion_rate || 0).toFixed(0) + '%';
+    document.getElementById('kpiLoyalty').textContent = loyalty.status || 'Standard';
+    document.getElementById('kpiPoints').textContent = (loyalty.points_earned || 0) + ' points earned';
+    var memberDays = loyalty.member_since_days || 0;
+    document.getElementById('kpiMember').textContent = memberDays >= 365 ? Math.floor(memberDays/365) + ' yr' + (Math.floor(memberDays/365)>1?'s':'') : memberDays + ' days';
+    document.getElementById('kpiThisMonth').textContent = 'Orders this month: ' + (loyalty.orders_this_month || 0);
+    document.getElementById('kpiCart').textContent = 'Rs ' + (cart.cart_total || 0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('kpiCartItems').textContent = (cart.cart_item_count || 0) + ' items in cart';
+
+    // ── Monthly Spending Chart ──
+    var monthly = spending.monthly_spending_12m || [];
+    var mReversed = monthly.slice().reverse();
+    var mLabels = mReversed.map(function(m){
+      var parts = m.month.split('-');
+      var names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return names[parseInt(parts[1])-1] + ' ' + parts[0].slice(2);
+    });
+    var mAmounts = mReversed.map(function(m){ return m.total_spent; });
+    var mOrders = mReversed.map(function(m){ return m.order_count; });
+
+    new Chart(document.getElementById('chartSpending').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: mLabels,
+        datasets: [{
+          label: 'Spending (Rs)',
+          data: mAmounts,
+          backgroundColor: 'rgba(43,138,62,0.65)',
+          borderColor: 'rgba(43,138,62,1)',
+          borderWidth: 1,
+          borderRadius: 4,
+          yAxisID: 'y'
+        },{
+          label: 'Orders',
+          data: mOrders,
+          type: 'line',
+          borderColor: '#7c3aed',
+          backgroundColor: 'rgba(124,58,237,0.08)',
+          tension: 0.35,
+          pointRadius: 3,
+          pointBackgroundColor: '#7c3aed',
+          yAxisID: 'y1',
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        interaction: {mode:'index',intersect:false},
+        plugins: {
+          legend: {position:'bottom',labels:{usePointStyle:true,padding:14,font:{size:11}}},
+          tooltip: {
+            callbacks: {
+              label: function(c){
+                return c.dataset.label==='Spending (Rs)' ? 'Rs '+c.parsed.y.toFixed(2) : c.parsed.y+' orders';
+              }
+            }
+          }
+        },
+        scales: {
+          y:  {beginAtZero:true,title:{display:true,text:'Rs',font:{size:11}},grid:{color:'rgba(0,0,0,.04)'}},
+          y1: {beginAtZero:true,position:'right',title:{display:true,text:'Orders',font:{size:11}},grid:{drawOnChartArea:false}}
+        }
+      }
+    });
+
+    // ── Order Status Doughnut ──
+    new Chart(document.getElementById('chartStatus').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Completed','Pending','Cancelled'],
+        datasets: [{
+          data: [orders.completed_orders||0, orders.pending_orders||0, orders.cancelled_orders||0],
+          backgroundColor: ['#2b8a3e','#f59f00','#e53e3e'],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '60%',
+        plugins: {
+          legend: {position:'bottom',labels:{usePointStyle:true,padding:14,font:{size:11}}}
+        }
+      }
+    });
+
+    // ── Top Products Horizontal Bar ──
+    var favs = spending.favorite_products || [];
+    var fLabels = favs.map(function(f){ return f.product_name || 'Unknown'; });
+    var fQty = favs.map(function(f){ return f.times_purchased || 0; });
+    var fSpent = favs.map(function(f){ return f.total_spent || 0; });
+
+    new Chart(document.getElementById('chartProducts').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: fLabels.length ? fLabels : ['No data'],
+        datasets: [{
+          label: 'Qty Purchased',
+          data: fQty.length ? fQty : [0],
+          backgroundColor: 'rgba(0,120,212,0.7)',
+          borderRadius: 4
+        },{
+          label: 'Amount (Rs)',
+          data: fSpent.length ? fSpent : [0],
+          backgroundColor: 'rgba(124,58,237,0.5)',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+          legend:{position:'bottom',labels:{usePointStyle:true,padding:14,font:{size:11}}}
+        },
+        scales: {
+          x: {beginAtZero:true,grid:{color:'rgba(0,0,0,.04)'}},
+          y: {grid:{display:false}}
+        }
+      }
+    });
+
+    // ── Loyalty Panel ──
+    var lp = document.getElementById('loyaltyPanel');
+    var progress = loyalty.status === 'Premium' ? 100 : Math.min(100, Math.round((orders.total_orders||0)/(loyalty.next_tier_threshold||6)*100));
+    lp.innerHTML =
+      '<div style="text-align:center;margin-bottom:16px;">' +
+        '<div style="font-size:3rem;">' + (loyalty.status==='Premium'?'👑':'🥈') + '</div>' +
+        '<div style="font-size:1.3rem;font-weight:700;margin-top:4px;">' + (loyalty.status||'Standard') + ' Member</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">' +
+        '<div style="text-align:center;padding:10px;background:#f8f9fa;border-radius:6px;">' +
+          '<div style="font-size:1.2rem;font-weight:700;color:var(--pbi-accent);">' + (loyalty.points_earned||0) + '</div>' +
+          '<div style="font-size:.72rem;color:var(--pbi-muted);text-transform:uppercase;">Points</div>' +
+        '</div>' +
+        '<div style="text-align:center;padding:10px;background:#f8f9fa;border-radius:6px;">' +
+          '<div style="font-size:1.2rem;font-weight:700;color:var(--pbi-accent2);">' + (loyalty.orders_this_month||0) + '</div>' +
+          '<div style="font-size:.72rem;color:var(--pbi-muted);text-transform:uppercase;">This Month</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="font-size:.8rem;color:var(--pbi-muted);margin-bottom:4px;">' +
+        'Progress to ' + (loyalty.status==='Premium'?'next reward':'Premium') +
+      '</div>' +
+      '<div class="pbi-progress-bg"><div class="pbi-progress-fill" style="width:'+progress+'%"></div></div>' +
+      '<div style="font-size:.72rem;color:var(--pbi-muted);margin-top:4px;text-align:right;">'+progress+'%</div>';
+
+    // ── Recent Orders Table ──
+    var tbody = document.getElementById('ordersTableBody');
+    if(recent.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#999;">No orders yet</td></tr>';
+    } else {
+      tbody.innerHTML = recent.map(function(o){
+        var statusCls = 'pbi-status pbi-status-' + (o.status||'pending');
+        var dateStr = o.created_at ? new Date(o.created_at).toLocaleDateString() : '—';
+        return '<tr>' +
+          '<td><strong>#' + (o.id||'—') + '</strong></td>' +
+          '<td>' + dateStr + '</td>' +
+          '<td>Rs ' + (o.total_amount||0).toFixed(2) + '</td>' +
+          '<td><span class="' + statusCls + '">' + (o.status||'unknown') + '</span></td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    // ── Recommendations ──
+    var rPanel = document.getElementById('recsPanel');
+    var prods = recs.suggested_products || [];
+    if(prods.length === 0){
+      rPanel.innerHTML = '<p style="text-align:center;color:#999;padding:1rem;">No recommendations available yet. Start shopping to get personalized suggestions!</p>';
+    } else {
+      rPanel.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">' +
+        prods.map(function(p){
+          return '<div style="border:1px solid var(--pbi-border);border-radius:8px;padding:14px;text-align:center;transition:box-shadow .15s;" onmouseover="this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.1)\'" onmouseout="this.style.boxShadow=\'none\'">' +
+            '<div style="font-size:1.8rem;margin-bottom:8px;">🛍️</div>' +
+            '<div style="font-weight:600;font-size:.85rem;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+((p.product_name||'Product').replace(/"/g,'&quot;'))+'">' + (p.product_name||'Product') + '</div>' +
+            '<div style="color:var(--pbi-accent);font-weight:700;">Rs ' + (p.price||0).toFixed(2) + '</div>' +
+            (p.in_stock ? '<div style="font-size:.7rem;color:#2b8a3e;margin-top:4px;">● In Stock</div>' : '<div style="font-size:.7rem;color:#e53e3e;margin-top:4px;">○ Out of Stock</div>') +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+  }
+})();
+</script>
+{% endblock %}

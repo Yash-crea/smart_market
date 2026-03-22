@@ -415,12 +415,16 @@
       <div class="section-card">
         <h3>📊 Analytics & Reports</h3>
         <div class="quick-actions">
+          <a href="{% url 'smart_market:powerbi_dashboard' %}" class="action-btn" style="text-decoration:none;">
+            <span class="action-icon">⚡</span>
+            <span>Open Power BI Dashboard</span>
+          </a>
           <button onclick="showPowerBIInfo()" class="action-btn">
-            <span class="action-icon">📊</span>
-            <span>Connect Power BI</span>
+            <span class="action-icon">🔗</span>
+            <span>API Connection</span>
           </button>
         </div>
-        <p style="font-size: 0.8rem; color: #888; margin-top: 0.75rem; padding: 0 0.5rem;">Connect Power BI for live dashboards.</p>
+        <p style="font-size: 0.8rem; color: #888; margin-top: 0.75rem; padding: 0 0.5rem;">View your full analytics dashboard powered by Power BI.</p>
       </div>
 
       <!-- Account Summary -->

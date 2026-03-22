@@ -835,6 +835,15 @@ def staff_dashboard(request):
     return render(request, 'staff_dashboard.html', context)
 
 @login_required
+def powerbi_dashboard_page(request):
+    """Dedicated Power BI analytics dashboard page for customers"""
+    if request.user.groups.filter(name__in=['Owner', 'Staff']).exists():
+        messages.warning(request, 'Access denied. Please login with customer credentials.')
+        return redirect('smart_market:unified_login')
+    return render(request, 'powerbi_dashboard.html')
+
+
+@login_required
 def customer_dashboard(request):
     """Enhanced customer dashboard with personalized information"""
     # Ensure only customers or users without owner/staff privileges can access
