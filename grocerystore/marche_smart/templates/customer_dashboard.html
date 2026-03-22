@@ -230,14 +230,16 @@
             // --- Monthly spending chart ---
             var monthly = data.spending_patterns && data.spending_patterns.monthly_spending_12m
                         ? data.spending_patterns.monthly_spending_12m : [];
-            // API returns newest-first; reverse to oldest-first then take last 6
-            var sliced = monthly.slice().reverse().slice(-6);
-            var labels = sliced.map(function(m){ return m.month.slice(5); }); // "MM"
+            // API now returns oldest-first (all historical months)
+            var sliced = monthly.slice();
             var monthNames = {
               '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun',
               '07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'
             };
-            labels = labels.map(function(l){ return monthNames[l] || l; });
+            var labels = sliced.map(function(m){
+              var parts = m.month.split('-');
+              return (monthNames[parts[1]]||parts[1]) + ' ' + parts[0].slice(2);
+            });
             var amounts = sliced.map(function(m){ return m.total_spent; });
             var orders  = sliced.map(function(m){ return m.order_count; });
 

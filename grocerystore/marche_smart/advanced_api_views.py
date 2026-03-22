@@ -659,17 +659,35 @@ def powerbi_owner_dashboard(request):
         
         # === TIME SERIES DATA ===
         try:
-            # Daily orders for last 30 days
+            # Daily orders & revenue for last 30 days
             daily_orders = []
             for i in range(30):
                 date = (timezone.now() - timedelta(days=i)).date()
-                orders_count = all_orders.filter(created_at__date=date).count()
+                day_orders = all_orders.filter(created_at__date=date)
+                day_count = day_orders.count()
+                day_revenue = sum(float(o.total_amount) for o in day_orders if o.total_amount)
                 daily_orders.append({
                     'date': date.isoformat(),
-                    'orders_count': orders_count
+                    'orders_count': day_count,
+                    'revenue': round(day_revenue, 2)
+                })
+
+            # Monthly summary covering ALL historical months
+            from django.db.models.functions import TruncMonth
+            monthly_summary = []
+            monthly_qs = all_orders.annotate(month=TruncMonth('created_at')).values('month').annotate(
+                order_count=Count('id'),
+                revenue=Sum('total_amount')
+            ).order_by('month')
+            for entry in monthly_qs:
+                monthly_summary.append({
+                    'month': entry['month'].strftime('%Y-%m'),
+                    'order_count': entry['order_count'],
+                    'revenue': round(float(entry['revenue'] or 0), 2)
                 })
         except Exception as e:
             daily_orders = []
+            monthly_summary = []
         
         # Construct response optimized for Power BI
         dashboard_data = {
@@ -729,6 +747,7 @@ def powerbi_owner_dashboard(request):
             # === ANALYTICS DATA ===
             'top_products': top_products,
             'daily_orders_30d': daily_orders,
+            'monthly_summary': monthly_summary,
             'recent_orders': [
                 {
                     'id': order.id,
@@ -827,25 +846,25 @@ def powerbi_customer_dashboard(request):
         
         # === PURCHASE PATTERNS ===
         try:
-            # Monthly spending pattern (last 12 months)
+            # Monthly spending pattern — ALL historical months with orders
+            from django.db.models.functions import TruncMonth
             monthly_spending = []
-            for i in range(12):
-                month_start = (timezone.now().replace(day=1) - timedelta(days=30*i)).replace(day=1)
-                month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-                
-                monthly_orders = customer_orders.filter(
-                    created_at__gte=month_start,
-                    created_at__lte=month_end
-                )
-                monthly_total = 0
-                for order in monthly_orders:
-                    if hasattr(order, 'total_amount') and order.total_amount:
-                        monthly_total += float(order.total_amount)
-                
+            monthly_qs = customer_orders.annotate(month=TruncMonth('created_at')).values('month').annotate(
+                order_count=Count('id'),
+                total_spent=Sum('total_amount')
+            ).order_by('month')
+            for entry in monthly_qs:
                 monthly_spending.append({
-                    'month': month_start.strftime('%Y-%m'),
-                    'total_spent': monthly_total,
-                    'order_count': monthly_orders.count()
+                    'month': entry['month'].strftime('%Y-%m'),
+                    'total_spent': round(float(entry['total_spent'] or 0), 2),
+                    'order_count': entry['order_count']
+                })
+            # If no months with orders, add current month as zero
+            if not monthly_spending:
+                monthly_spending.append({
+                    'month': timezone.now().strftime('%Y-%m'),
+                    'total_spent': 0,
+                    'order_count': 0
                 })
         except Exception as e:
             monthly_spending = [

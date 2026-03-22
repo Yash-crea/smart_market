@@ -264,10 +264,10 @@
 
     <div class="pbi-grid">
       <!-- Revenue Chart -->
-      <div class="pbi-card">
-        <h4>Daily Revenue (30 Days)</h4>
+      <div class="pbi-card" style="grid-column:span 2;">
+        <h4>Monthly Revenue & Orders (All Time)</h4>
         <div id="revenueLoading" style="text-align:center;padding:2rem;color:#888;">📊 Loading...</div>
-        <canvas id="revenueChart" height="200" style="display:none;"></canvas>
+        <canvas id="revenueChart" height="160" style="display:none;"></canvas>
       </div>
       <!-- Order Status Pie -->
       <div class="pbi-card">
@@ -335,23 +335,47 @@
       var inStock = (im.regular_products ? im.regular_products.in_stock : 0) + (im.smart_products ? im.smart_products.in_stock : 0);
       document.getElementById('kpi-stock').textContent = inStock;
 
-      // --- Revenue Line Chart ---
-      var daily = data.daily_orders_30d || [];
-      daily = daily.slice().reverse();
-      var rLabels = daily.map(function(d){ return d.date.slice(5); });
-      var rData = daily.map(function(d){ return d.orders_count; });
+      // --- Monthly Revenue & Orders Chart (ALL TIME) ---
+      var monthly = data.monthly_summary || [];
+      var mLabels = monthly.map(function(m){
+        var parts = m.month.split('-');
+        var names = {'01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun','07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'};
+        return (names[parts[1]]||parts[1]) + ' ' + parts[0].slice(2);
+      });
+      var mRevenue = monthly.map(function(m){ return m.revenue; });
+      var mOrders = monthly.map(function(m){ return m.order_count; });
       document.getElementById('revenueLoading').style.display = 'none';
       var rc = document.getElementById('revenueChart'); rc.style.display = 'block';
       if(revenueChartObj) revenueChartObj.destroy();
       revenueChartObj = new Chart(rc.getContext('2d'), {
-        type: 'line',
-        data: { labels: rLabels, datasets: [{
-          label: 'Orders', data: rData,
-          borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)',
-          tension: 0.3, fill: true, pointRadius: 2
-        }]},
-        options: { responsive: true, plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true, title: { display: true, text: 'Orders' } } } }
+        type: 'bar',
+        data: {
+          labels: mLabels,
+          datasets: [{
+            label: 'Revenue (Rs)', data: mRevenue, type: 'bar',
+            backgroundColor: 'rgba(102,126,234,0.7)', borderColor: '#667eea',
+            borderWidth: 1, borderRadius: 4, yAxisID: 'y'
+          },{
+            label: 'Orders', data: mOrders, type: 'line',
+            borderColor: '#28a745', backgroundColor: 'rgba(40,167,69,0.1)',
+            tension: 0.3, pointRadius: 4, pointBackgroundColor: '#28a745',
+            yAxisID: 'y1', fill: true
+          }]
+        },
+        options: {
+          responsive: true, interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { usePointStyle: true, padding: 14 } },
+            tooltip: { callbacks: { label: function(c){
+              if(c.dataset.label==='Revenue (Rs)') return 'Rs ' + c.parsed.y.toLocaleString();
+              return c.parsed.y + ' orders';
+            }}}
+          },
+          scales: {
+            y:  { beginAtZero:true, title:{display:true,text:'Revenue (Rs)'}, grid:{color:'rgba(0,0,0,0.05)'} },
+            y1: { beginAtZero:true, position:'right', title:{display:true,text:'Orders'}, grid:{drawOnChartArea:false} }
+          }
+        }
       });
 
       // --- Order Status Pie ---
