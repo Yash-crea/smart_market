@@ -5,7 +5,10 @@ and model training with validation metrics
 """
 
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+import logging
+
+logger = logging.getLogger(__name__)
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
@@ -21,7 +24,7 @@ from .serializers import ProductSerializer, SmartProductSerializer
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_30day_demand_forecast(request, product_id):
     """
     Get 30-day demand forecast for a specific product
@@ -129,7 +132,7 @@ def get_30day_demand_forecast(request, product_id):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_personalized_recommendations(request):
     """
     Get personalized product recommendations
@@ -228,10 +231,10 @@ def get_personalized_recommendations(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def train_forecasting_models(request):
     """
-    Train forecasting models with historical data
+    Train forecasting models with historical data (staff only)
     
     URL: /api/models/train/
     Method: POST
@@ -345,7 +348,7 @@ def train_forecasting_models(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def export_recommendations_json(request):
     """
     Export recommendations in JSON format for external systems
@@ -444,10 +447,10 @@ def export_recommendations_json(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAdminUser])
 def get_model_status(request):
     """
-    Get status and performance metrics of trained models
+    Get status and performance metrics of trained models (staff only)
     
     URL: /api/models/status/
     Method: GET
@@ -521,15 +524,14 @@ def get_model_status(request):
 
 # ==============================================================================
 # POWER BI DASHBOARD ENDPOINTS
-# NOTE: Authentication temporarily disabled for testing - re-enable for production
 # ==============================================================================
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAdminUser])
 @throttle_classes([])
 def powerbi_owner_dashboard(request):
     """
-    Power BI optimized Owner Dashboard Analytics
+    Power BI optimized Owner Dashboard Analytics (staff/owner only)
     
     URL: /api/powerbi/owner-dashboard/
     Method: GET
@@ -769,10 +771,10 @@ def powerbi_owner_dashboard(request):
         return Response(dashboard_data, status=status.HTTP_200_OK)
         
     except Exception as e:
+        logger.error(f'Dashboard data generation failed: {e}')
         return Response({
-            'error': f'Dashboard data generation failed: {str(e)}',
+            'error': 'Dashboard data generation failed. Please try again later.',
             'report_generated': timezone.now().isoformat(),
-            'debug_info': str(e)  # Include debug info for troubleshooting
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1019,9 +1021,8 @@ def powerbi_customer_dashboard(request):
         return Response(customer_data, status=status.HTTP_200_OK)
         
     except Exception as e:
+        logger.error(f'Customer dashboard generation failed for user {getattr(request.user, "id", "unknown")}: {e}')
         return Response({
-            'error': f'Customer dashboard generation failed: {str(e)}',
-            'user_id': getattr(request.user, 'id', 'unauthenticated'),
+            'error': 'Customer dashboard generation failed. Please try again later.',
             'report_generated': timezone.now().isoformat(),
-            'debug_info': str(e)  # Include debug info
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

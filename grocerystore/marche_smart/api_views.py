@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser, IsAuthenticatedOrReadOnly
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from django.contrib.auth import authenticate, login
@@ -78,7 +78,13 @@ class CategoryViewSet(viewsets.ModelViewSet):
     """Category CRUD operations"""
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        """Allow read for anyone, require staff for write operations"""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminUser()]
+        return [AllowAny()]
     
     @action(detail=True, methods=['get'])
     def products(self, request, pk=None):
@@ -121,7 +127,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     """Product CRUD operations with ML features and caching"""
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        """Allow read for anyone, require staff for write operations"""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminUser()]
+        return [AllowAny()]
     
     def list(self, request, *args, **kwargs):
         """List products with caching support"""
@@ -282,7 +294,13 @@ class SmartProductViewSet(viewsets.ModelViewSet):
     """Smart Products with enhanced ML features and caching"""
     queryset = SmartProducts.objects.all()
     serializer_class = SmartProductSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        """Allow read for anyone, require staff for write operations"""
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAdminUser()]
+        return [AllowAny()]
     
     def list(self, request, *args, **kwargs):
         """List smart products with caching support"""
@@ -681,11 +699,14 @@ class OrderViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def analytics(self, request):
-        """Get order analytics"""
+        """Get order analytics - staff sees all, customers see only their own"""
         days = int(request.query_params.get('days', 30))
         start_date = timezone.now() - timedelta(days=days)
         
-        orders = Order.objects.filter(created_at__gte=start_date)
+        if request.user.is_staff:
+            orders = Order.objects.filter(created_at__gte=start_date)
+        else:
+            orders = Order.objects.filter(created_at__gte=start_date, user=request.user)
         
         analytics = {
             'total_orders': orders.count(),
