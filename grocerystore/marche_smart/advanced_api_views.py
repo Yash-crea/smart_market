@@ -4,8 +4,9 @@ Provides endpoints for 30-day demand forecasting, personalized recommendations,
 and model training with validation metrics
 """
 
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, renderer_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.renderers import JSONRenderer
 import logging
 
 logger = logging.getLogger(__name__)
@@ -528,6 +529,7 @@ def get_model_status(request):
 
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
+@renderer_classes([JSONRenderer])
 @throttle_classes([])
 def powerbi_owner_dashboard(request):
     """
@@ -642,14 +644,14 @@ def powerbi_owner_dashboard(request):
         try:
             # Most ordered products (from OrderItem) - safely handle missing fields
             if OrderItem.objects.exists():
-                top_products_query = OrderItem.objects.values('product__name').annotate(
+                top_products_query = OrderItem.objects.values('product_name').annotate(
                     total_quantity=Sum('quantity'),
-                    total_revenue=Sum('price')
+                    total_revenue=Sum('subtotal')
                 ).order_by('-total_quantity')[:5]
                 
                 top_products = [
                     {
-                        'product_name': item.get('product__name', 'Unknown Product'),
+                        'product_name': item.get('product_name', 'Unknown Product'),
                         'total_quantity': item.get('total_quantity', 0),
                         'total_revenue': float(item.get('total_revenue', 0))
                     }
@@ -781,6 +783,7 @@ def powerbi_owner_dashboard(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @throttle_classes([])
+@renderer_classes([JSONRenderer])
 def powerbi_customer_dashboard(request):
     """
     Power BI optimized Customer Dashboard Analytics
@@ -882,16 +885,16 @@ def powerbi_customer_dashboard(request):
             order_items = OrderItem.objects.filter(order__user=request.user)
             
             if order_items.exists():
-                favorite_products = order_items.values('product__name').annotate(
+                favorite_products = order_items.values('product_name').annotate(
                     total_quantity=Sum('quantity'),
-                    total_spent=Sum('price')
+                    total_spent=Sum('subtotal')
                 ).order_by('-total_quantity')[:5]
                 
                 favorite_products_list = [
                     {
-                        'product_name': item.get('product__name', 'Unknown Product'),
+                        'product_name': item.get('product_name') or 'Unknown Product',
                         'times_purchased': item.get('total_quantity', 0),
-                        'total_spent': float(item.get('total_spent', 0))
+                        'total_spent': float(item.get('total_spent') or 0)
                     }
                     for item in favorite_products
                 ]

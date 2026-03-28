@@ -2126,8 +2126,16 @@ def add_to_cart(request, product_id):
             # Get product to validate it exists and get name for message
             if product_type == 'smart':
                 product = get_object_or_404(SmartProducts, id=product_id)
+                available_stock = product.stock_quantity if product.stock_quantity is not None else 0
             else:
                 product = get_object_or_404(Product, id=product_id)
+                available_stock = product.stock_quantity if product.stock_quantity is not None else 0
+                if hasattr(product, 'in_stock') and not product.in_stock:
+                    available_stock = 0
+            
+            if available_stock <= 0:
+                messages.error(request, f"Sorry, {product.name} is out of stock.")
+                return redirect('smart_market:shop')
             
             if request.user.is_authenticated:
                 # Authenticated user - use database cart
@@ -2146,9 +2154,18 @@ def add_to_cart(request, product_id):
                 
                 if not item_created:
                     cart_item.quantity += quantity
+                else:
+                    # item_created already has the quantity set via defaults
+                    pass
+                
+                # Check total quantity doesn't exceed stock
+                if cart_item.quantity > available_stock:
+                    cart_item.quantity = available_stock
                     cart_item.save()
-                    
-                messages.success(request, f"Added {product.name} to cart!")
+                    messages.warning(request, f"Only {available_stock} unit(s) of {product.name} available. Cart updated to maximum.")
+                else:
+                    cart_item.save()
+                    messages.success(request, f"Added {product.name} to cart!")
                 return redirect('smart_market:cart')
                 
             else:
@@ -2251,6 +2268,38 @@ def checkout(request):
         messages.error(request, "Your cart is empty.")
         return redirect('smart_market:shop')
     
+    # Validate stock for all cart items before checkout
+    stock_issues = []
+    for item in cart_items:
+        if item.smart_product:
+            avail = item.smart_product.stock_quantity if item.smart_product.stock_quantity is not None else 0
+            if avail <= 0:
+                stock_issues.append(f'"{item.smart_product.name}" is out of stock and has been removed from your cart.')
+                item.delete()
+            elif item.quantity > avail:
+                stock_issues.append(f'"{item.smart_product.name}" only has {avail} unit(s) available. Quantity adjusted.')
+                item.quantity = avail
+                item.save()
+        elif item.product:
+            avail = item.product.stock_quantity if item.product.stock_quantity is not None else 0
+            out = hasattr(item.product, 'in_stock') and not item.product.in_stock
+            if avail <= 0 or out:
+                stock_issues.append(f'"{item.product.name}" is out of stock and has been removed from your cart.')
+                item.delete()
+            elif item.quantity > avail:
+                stock_issues.append(f'"{item.product.name}" only has {avail} unit(s) available. Quantity adjusted.')
+                item.quantity = avail
+                item.save()
+    
+    if stock_issues:
+        for issue in stock_issues:
+            messages.warning(request, issue)
+        # Re-check if cart is now empty
+        cart_items = cart.items.all()
+        if not cart_items.exists():
+            messages.error(request, "All items in your cart are out of stock. Please add new items.")
+            return redirect('smart_market:shop')
+    
     # Calculate totals
     subtotal = cart.total_amount
     tax_rate = Decimal('0.15')
@@ -2280,6 +2329,7 @@ def checkout(request):
     
     context = {
         'cart_items': cart_items,
+        'total_item_count': sum(item.quantity for item in cart_items),
         'subtotal': subtotal,
         'tax_amount': tax_amount,
         'shipping_cost': shipping_cost,
@@ -2372,6 +2422,39 @@ def process_payment(request, cart=None, total_amount=None):
             messages.error(request, "Please fill in all required fields and accept the terms.")
             return redirect('smart_market:checkout')
 
+        # Format validation for fields
+        import re
+        name_pattern = re.compile(r"^[A-Za-z\s\-'.]{2,}$")
+        phone_pattern = re.compile(r"^\+?[0-9\s\-]{7,15}$")
+
+        if not name_pattern.match(customer_name):
+            messages.error(request, "Name must contain only letters (no numbers or special characters).")
+            return redirect('smart_market:checkout')
+
+        if not phone_pattern.match(customer_phone):
+            messages.error(request, "Phone number must contain only digits (e.g. +230 5XXX XXXX).")
+            return redirect('smart_market:checkout')
+
+        if delivery_method == 'home_delivery':
+            if not re.search(r'[A-Za-z]', shipping_address):
+                messages.error(request, "Address must include a street name (not just numbers).")
+                return redirect('smart_market:checkout')
+            if len(shipping_address) < 5:
+                messages.error(request, "Please enter a complete street address.")
+                return redirect('smart_market:checkout')
+
+        if shipping_postal_code and not re.match(r'^[0-9]{3,6}$', shipping_postal_code):
+            messages.error(request, "Postal code must be 3-6 digits only.")
+            return redirect('smart_market:checkout')
+
+        if payment_method in ['credit_card', 'debit_card']:
+            if not name_pattern.match(cardholder_name):
+                messages.error(request, "Cardholder name must contain only letters.")
+                return redirect('smart_market:checkout')
+            if not re.match(r'^[0-9]{13,19}$', card_number):
+                messages.error(request, "Please enter a valid card number.")
+                return redirect('smart_market:checkout')
+
         if delivery_method == 'store_pickup' and pickup_store not in store_addresses:
             messages.error(request, "Please select a valid pickup store.")
             return redirect('smart_market:checkout')
@@ -2412,8 +2495,12 @@ def process_payment(request, cart=None, total_amount=None):
             total_amount=total
         )
         
-        # Create order items
-        for cart_item in cart.items.all():
+        # Create order items - optimized with batch notifications
+        stock_notifications = []
+        owner_users = list(User.objects.filter(groups__name='Owner').distinct())
+        cart_items_qs = cart.items.select_related('product', 'smart_product').all()
+        
+        for cart_item in cart_items_qs:
             OrderItem.objects.create(
                 order=order,
                 product=cart_item.product,
@@ -2423,6 +2510,59 @@ def process_payment(request, cart=None, total_amount=None):
                 quantity=cart_item.quantity,
                 subtotal=cart_item.subtotal
             )
+
+            # Decrement stock quantity after order
+            if cart_item.product and cart_item.product.stock_quantity is not None:
+                cart_item.product.stock_quantity = max(0, cart_item.product.stock_quantity - cart_item.quantity)
+                if cart_item.product.stock_quantity == 0:
+                    cart_item.product.in_stock = False
+                cart_item.product.save()
+
+                if cart_item.product.stock_quantity == 0:
+                    for owner in owner_users:
+                        stock_notifications.append(Notification(
+                            recipient_user=owner,
+                            notification_type='low_stock',
+                            title=f'Out of Stock: {cart_item.product.name}',
+                            message=f'"{cart_item.product.name}" is now OUT OF STOCK after Order #{order.order_number}.',
+                            related_order=order
+                        ))
+                elif cart_item.product.stock_quantity <= cart_item.product.reorder_point:
+                    for owner in owner_users:
+                        stock_notifications.append(Notification(
+                            recipient_user=owner,
+                            notification_type='low_stock',
+                            title=f'Low Stock: {cart_item.product.name}',
+                            message=f'"{cart_item.product.name}" — only {cart_item.product.stock_quantity} left. Order #{order.order_number}.',
+                            related_order=order
+                        ))
+
+            elif cart_item.smart_product and cart_item.smart_product.stock_quantity is not None:
+                cart_item.smart_product.stock_quantity = max(0, cart_item.smart_product.stock_quantity - cart_item.quantity)
+                cart_item.smart_product.save()
+
+                if cart_item.smart_product.stock_quantity == 0:
+                    for owner in owner_users:
+                        stock_notifications.append(Notification(
+                            recipient_user=owner,
+                            notification_type='low_stock',
+                            title=f'Out of Stock: {cart_item.smart_product.name}',
+                            message=f'"{cart_item.smart_product.name}" is now OUT OF STOCK after Order #{order.order_number}.',
+                            related_order=order
+                        ))
+                elif cart_item.smart_product.stock_quantity <= cart_item.smart_product.reorder_point:
+                    for owner in owner_users:
+                        stock_notifications.append(Notification(
+                            recipient_user=owner,
+                            notification_type='low_stock',
+                            title=f'Low Stock: {cart_item.smart_product.name}',
+                            message=f'"{cart_item.smart_product.name}" — only {cart_item.smart_product.stock_quantity} left. Order #{order.order_number}.',
+                            related_order=order
+                        ))
+        
+        # Batch create all stock notifications in one query
+        if stock_notifications:
+            Notification.objects.bulk_create(stock_notifications)
         
         # Create payment record
         payment = Payment.objects.create(
@@ -2455,14 +2595,19 @@ def process_payment(request, cart=None, total_amount=None):
         payment.save()
         order.save()
         
-        # Create notification for owners about new order
-        create_notification(
-            notification_type='new_order',
-            title=f'New Order #{order.order_number}',
-            message=f'New order placed by {customer_name} for Rs {total:.2f}. Payment method: {payment_method}.',
-            related_order=order,
-            recipient_groups=['Owner']
-        )
+        # Create new order notification for owners (batch)
+        order_notifs = []
+        item_names = ", ".join(item.product_name for item in order.items.all())
+        for owner in owner_users:
+            order_notifs.append(Notification(
+                recipient_user=owner,
+                notification_type='new_order',
+                title=f'New Order #{order.order_number} by {customer_name}',
+                message=f'{customer_name} placed a new order for Rs {total:.2f}. Payment: {payment.get_payment_method_display()}. Items: {item_names}.',
+                related_order=order
+            ))
+        if order_notifs:
+            Notification.objects.bulk_create(order_notifs)
 
         if save_details:
             request.session[CHECKOUT_FORM_SESSION_KEY] = {
@@ -2550,8 +2695,14 @@ def update_cart(request, product_id):
                 
                 if product_type == 'smart':
                     cart_item = CartItem.objects.get(cart=cart, smart_product_id=product_id)
+                    available_stock = cart_item.smart_product.stock_quantity if cart_item.smart_product.stock_quantity is not None else 0
                 else:
                     cart_item = CartItem.objects.get(cart=cart, product_id=product_id)
+                    available_stock = cart_item.product.stock_quantity if cart_item.product.stock_quantity is not None else 0
+                
+                if quantity > available_stock:
+                    quantity = available_stock
+                    messages.warning(request, f"Only {available_stock} unit(s) available. Quantity adjusted.")
                 
                 cart_item.quantity = quantity
                 cart_item.save()
@@ -2796,9 +2947,22 @@ def update_cart_item(request, item_id):
             cart_item.delete()
             messages.success(request, "Item removed from cart.")
         else:
+            # Enforce stock limit
+            if cart_item.smart_product:
+                available_stock = cart_item.smart_product.stock_quantity if cart_item.smart_product.stock_quantity is not None else 0
+            elif cart_item.product:
+                available_stock = cart_item.product.stock_quantity if cart_item.product.stock_quantity is not None else 0
+            else:
+                available_stock = new_quantity
+            
+            if new_quantity > available_stock:
+                new_quantity = available_stock
+                messages.warning(request, f"Only {available_stock} unit(s) available. Quantity adjusted.")
+            else:
+                messages.success(request, "Cart updated successfully.")
+            
             cart_item.quantity = new_quantity
             cart_item.save()
-            messages.success(request, "Cart updated successfully.")
             
     except Cart.DoesNotExist:
         messages.error(request, "Cart not found.")

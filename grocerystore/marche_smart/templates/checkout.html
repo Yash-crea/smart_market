@@ -2,6 +2,26 @@
 {% load static %}
 
 {% block content %}
+<!-- Full-page loading overlay -->
+<div id="order-loading-overlay" class="order-loading-overlay" style="display:none;">
+    <div class="loading-content">
+        <div class="loading-spinner">
+            <svg viewBox="0 0 50 50" class="spinner-svg">
+                <circle cx="25" cy="25" r="20" fill="none" stroke="#2d5a27" stroke-width="4" stroke-linecap="round" stroke-dasharray="90,150" stroke-dashoffset="0">
+                    <animateTransform attributeName="transform" type="rotate" values="0 25 25;360 25 25" dur="0.8s" repeatCount="indefinite"/>
+                </circle>
+            </svg>
+        </div>
+        <h2>Placing Your Order</h2>
+        <p>Please wait while we process your payment...</p>
+        <div class="loading-steps">
+            <div class="loading-step active" id="ls-1"><i class="fas fa-check-circle"></i> Validating details</div>
+            <div class="loading-step" id="ls-2"><i class="fas fa-circle-notch fa-spin"></i> Processing payment</div>
+            <div class="loading-step" id="ls-3"><i class="far fa-circle"></i> Confirming order</div>
+        </div>
+    </div>
+</div>
+
 <div class="checkout-container">
     <div class="checkout-wrapper">
         <!-- Security Header -->
@@ -52,7 +72,9 @@
                             <div class="form-group">
                                 <label for="customer_name">Full Name <span class="required">*</span></label>
                                 <input type="text" id="customer_name" name="customer_name" 
-                                       value="{{ checkout_data.customer_name }}" autocomplete="name" required>
+                                       value="{{ checkout_data.customer_name }}" autocomplete="name" required
+                                       pattern="[A-Za-z\s\-'.]+" title="Name must contain only letters, spaces, hyphens or apostrophes">
+                                <span class="field-error" id="customer_name_error"></span>
                             </div>
                             <div class="form-group">
                                 <label for="customer_email">Email Address <span class="required">*</span></label>
@@ -62,7 +84,9 @@
                             <div class="form-group full-width">
                                 <label for="customer_phone">Phone Number <span class="required">*</span></label>
                                 <input type="tel" id="customer_phone" name="customer_phone" 
-                                       value="{{ checkout_data.customer_phone }}" placeholder="+230 xxxx xxxx" autocomplete="tel" required>
+                                       value="{{ checkout_data.customer_phone }}" placeholder="+230 xxxx xxxx" autocomplete="tel" required
+                                       pattern="[\+]?[0-9\s\-]{7,15}" title="Enter a valid phone number (digits, optional + prefix)">
+                                <span class="field-error" id="customer_phone_error"></span>
                             </div>
                             <div class="form-group full-width">
                                 <div class="checkbox-group">
@@ -115,7 +139,9 @@
                                 <div class="form-group full-width">
                                     <label for="shipping_address">Street Address <span class="required">*</span></label>
                                     <textarea id="shipping_address" name="shipping_address" 
-                                              placeholder="Building name, street, apartment" autocomplete="street-address">{{ checkout_data.shipping_address }}</textarea>
+                                              placeholder="Building name, street, apartment" autocomplete="street-address"
+                                              minlength="5" title="Enter a valid street address">{{ checkout_data.shipping_address }}</textarea>
+                                    <span class="field-error" id="shipping_address_error"></span>
                                 </div>
                                 <div class="form-group">
                                     <label for="shipping_city">City <span class="required">*</span></label>
@@ -133,7 +159,9 @@
                                 <div class="form-group">
                                     <label for="shipping_postal_code">Postal Code</label>
                                     <input type="text" id="shipping_postal_code" name="shipping_postal_code" 
-                                           value="{{ checkout_data.shipping_postal_code }}" placeholder="11xxx" autocomplete="postal-code">
+                                           value="{{ checkout_data.shipping_postal_code }}" placeholder="11xxx" autocomplete="postal-code"
+                                           pattern="[0-9]{3,6}" title="Postal code must be 3-6 digits" inputmode="numeric">
+                                    <span class="field-error" id="shipping_postal_code_error"></span>
                                 </div>
                             </div>
                         </div>
@@ -254,7 +282,9 @@
                                 <div class="form-group full-width">
                                  <label for="cardholder_name">Cardholder Name <span class="required">*</span></label>
                                     <input type="text" id="cardholder_name" name="cardholder_name" 
-                                     placeholder="Name on card" autocomplete="cc-name">
+                                     placeholder="Name on card" autocomplete="cc-name"
+                                     pattern="[A-Za-z\s\-'.]+" title="Cardholder name must contain only letters">
+                                    <span class="field-error" id="cardholder_name_error"></span>
                                 </div>
                             </div>
                         </div>
@@ -295,7 +325,7 @@
                             <div class="review-grid">
                                 <div class="review-item">
                                     <strong>Items:</strong>
-                                    <span id="review-items">{{ cart_items|length }} item(s)</span>
+                                    <span id="review-items">{{ total_item_count }} item(s)</span>
                                 </div>
                                 <div class="review-item">
                                     <strong>Delivery:</strong>
@@ -1129,6 +1159,110 @@
     }
 }
 
+/* Field Validation Errors */
+.field-error {
+    color: #dc2626;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    min-height: 1.2em;
+    display: block;
+}
+
+.form-group input.invalid,
+.form-group textarea.invalid {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.form-group input.valid,
+.form-group textarea.valid {
+    border-color: #2d5a27 !important;
+}
+
+/* Loading Overlay */
+.order-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.97);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.loading-content {
+    text-align: center;
+    max-width: 400px;
+    padding: 2rem;
+}
+
+.loading-spinner {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1.5rem;
+}
+
+.spinner-svg {
+    width: 64px;
+    height: 64px;
+}
+
+.loading-content h2 {
+    color: #2d5a27;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+}
+
+.loading-content p {
+    color: #666;
+    font-size: 0.95rem;
+    margin: 0 0 2rem;
+}
+
+.loading-steps {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.loading-step {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+    color: #bbb;
+    transition: color 0.3s;
+}
+
+.loading-step.active {
+    color: #2d5a27;
+    font-weight: 600;
+}
+
+.loading-step.done {
+    color: #2d5a27;
+}
+
+.loading-step.done i {
+    color: #2d5a27;
+}
+
+.loading-step i {
+    width: 20px;
+    text-align: center;
+}
+
 /* Loading States */
 .place-order-btn:disabled {
     opacity: 0.7;
@@ -1322,13 +1456,171 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // ── Real-time field validation ──
+
+    const nameRegex = /^[A-Za-z\s\-'.]{2,}$/;
+    const phoneRegex = /^\+?[0-9\s\-]{7,15}$/;
+    const postalRegex = /^[0-9]{3,6}$/;
+    const customerNameInput = document.getElementById('customer_name');
+    const customerPhoneInput = document.getElementById('customer_phone');
+    const postalCodeInput = document.getElementById('shipping_postal_code');
+    const cardholderInput = document.getElementById('cardholder_name');
+
+    function showError(input, errorId, message) {
+        const errorSpan = document.getElementById(errorId);
+        if (errorSpan) errorSpan.textContent = message;
+        input.classList.add('invalid');
+        input.classList.remove('valid');
+    }
+
+    function clearError(input, errorId) {
+        const errorSpan = document.getElementById(errorId);
+        if (errorSpan) errorSpan.textContent = '';
+        input.classList.remove('invalid');
+        if (input.value.trim()) input.classList.add('valid');
+    }
+
+    // Customer name: letters, spaces, hyphens, apostrophes only
+    if (customerNameInput) {
+        customerNameInput.addEventListener('input', function() {
+            const v = this.value;
+            if (v && /[0-9]/.test(v)) {
+                showError(this, 'customer_name_error', 'Name cannot contain numbers');
+            } else if (v && !nameRegex.test(v)) {
+                showError(this, 'customer_name_error', 'Enter a valid name (letters only)');
+            } else {
+                clearError(this, 'customer_name_error');
+            }
+        });
+    }
+
+    // Phone: digits, +, spaces, hyphens only — block letters as typed
+    if (customerPhoneInput) {
+        customerPhoneInput.addEventListener('input', function() {
+            // Strip any non-phone characters in real time
+            this.value = this.value.replace(/[^0-9+\s\-]/g, '');
+            const v = this.value.trim();
+            if (v && !phoneRegex.test(v)) {
+                showError(this, 'customer_phone_error', 'Enter a valid phone number (e.g. +230 5XXX XXXX)');
+            } else {
+                clearError(this, 'customer_phone_error');
+            }
+        });
+    }
+
+    // Shipping address: must contain letters, not just digits
+    if (shippingAddress) {
+        shippingAddress.addEventListener('input', function() {
+            const v = this.value.trim();
+            if (v && !/[A-Za-z]/.test(v)) {
+                showError(this, 'shipping_address_error', 'Address must contain street name (not just numbers)');
+            } else if (v && v.length < 5) {
+                showError(this, 'shipping_address_error', 'Address is too short');
+            } else {
+                clearError(this, 'shipping_address_error');
+            }
+        });
+    }
+
+    // Postal code: digits only
+    if (postalCodeInput) {
+        postalCodeInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '');
+            const v = this.value.trim();
+            if (v && !postalRegex.test(v)) {
+                showError(this, 'shipping_postal_code_error', 'Postal code must be 3-6 digits');
+            } else {
+                clearError(this, 'shipping_postal_code_error');
+            }
+        });
+    }
+
+    // Cardholder name: letters only
+    if (cardholderInput) {
+        cardholderInput.addEventListener('input', function() {
+            const v = this.value;
+            if (v && /[0-9]/.test(v)) {
+                showError(this, 'cardholder_name_error', 'Cardholder name cannot contain numbers');
+            } else if (v && !nameRegex.test(v)) {
+                showError(this, 'cardholder_name_error', 'Enter a valid name (letters only)');
+            } else {
+                clearError(this, 'cardholder_name_error');
+            }
+        });
+    }
+
+    // Full validation on form submit
     checkoutForm.addEventListener('submit', function(e) {
         syncCheckoutState();
+        let hasErrors = false;
+
+        // Validate name
+        if (customerNameInput && !nameRegex.test(customerNameInput.value)) {
+            showError(customerNameInput, 'customer_name_error', 'Enter a valid name (letters only, no numbers)');
+            hasErrors = true;
+        }
+
+        // Validate phone
+        if (customerPhoneInput && !phoneRegex.test(customerPhoneInput.value.trim())) {
+            showError(customerPhoneInput, 'customer_phone_error', 'Enter a valid phone number (digits only)');
+            hasErrors = true;
+        }
+
+        // Validate address (if home delivery)
+        const deliveryMethod = getSelectedValue(deliveryMethods) || 'home_delivery';
+        if (deliveryMethod === 'home_delivery' && shippingAddress) {
+            const addr = shippingAddress.value.trim();
+            if (!addr || !/[A-Za-z]/.test(addr)) {
+                showError(shippingAddress, 'shipping_address_error', 'Enter a valid street address');
+                hasErrors = true;
+            }
+        }
+
+        // Validate postal code if filled
+        if (postalCodeInput && postalCodeInput.value.trim() && !postalRegex.test(postalCodeInput.value.trim())) {
+            showError(postalCodeInput, 'shipping_postal_code_error', 'Postal code must be 3-6 digits');
+            hasErrors = true;
+        }
+
+        // Validate cardholder name for card payments
+        const paymentMethod = getSelectedValue(paymentMethods) || 'credit_card';
+        if (isCardPayment(paymentMethod) && cardholderInput && !nameRegex.test(cardholderInput.value)) {
+            showError(cardholderInput, 'cardholder_name_error', 'Enter a valid name (letters only)');
+            hasErrors = true;
+        }
+
+        if (hasErrors) {
+            e.preventDefault();
+            // Scroll to first error
+            const firstError = checkoutForm.querySelector('.invalid');
+            if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+
         if (!checkoutForm.checkValidity()) {
             return;
         }
         placeOrderBtn.disabled = true;
         placeOrderBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+        // Show full-page loading overlay immediately
+        const overlay = document.getElementById('order-loading-overlay');
+        if (overlay) {
+            overlay.style.display = 'flex';
+            // Animate steps
+            setTimeout(() => {
+                const s1 = document.getElementById('ls-1');
+                const s2 = document.getElementById('ls-2');
+                if (s1) { s1.classList.add('done'); s1.innerHTML = '<i class="fas fa-check-circle"></i> Details validated'; }
+                if (s2) { s2.classList.add('active'); s2.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing payment'; }
+            }, 600);
+            setTimeout(() => {
+                const s2 = document.getElementById('ls-2');
+                const s3 = document.getElementById('ls-3');
+                if (s2) { s2.classList.add('done'); s2.innerHTML = '<i class="fas fa-check-circle"></i> Payment processed'; }
+                if (s3) { s3.classList.add('active'); s3.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Confirming order'; }
+            }, 1500);
+        }
     });
 
     syncCheckoutState();

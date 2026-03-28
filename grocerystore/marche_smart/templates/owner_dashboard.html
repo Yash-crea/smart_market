@@ -265,7 +265,7 @@
     <div class="pbi-grid">
       <!-- Revenue Chart -->
       <div class="pbi-card" style="grid-column:span 2;">
-        <h4>Monthly Revenue & Orders (All Time)</h4>
+        <h4>Daily Revenue & Orders (Last 30 Days)</h4>
         <div id="revenueLoading" style="text-align:center;padding:2rem;color:#888;">📊 Loading...</div>
         <canvas id="revenueChart" height="160" style="display:none;"></canvas>
       </div>
@@ -312,7 +312,7 @@
     document.getElementById('pbi-status').textContent = '⟳ Refreshing...';
     document.getElementById('pbi-status').style.color = '#f0ad4e';
 
-    fetch('/api/v1/powerbi/owner-dashboard/', {
+    fetch('/api/v1/powerbi/owner-dashboard/?format=json', {
       method: 'GET', credentials: 'same-origin',
       headers: { 'Accept': 'application/json', 'X-CSRFToken': getCookie('csrftoken') }
     })
@@ -338,15 +338,15 @@
       var inStock = (im.regular_products ? im.regular_products.in_stock : 0) + (im.smart_products ? im.smart_products.in_stock : 0);
       document.getElementById('kpi-stock').textContent = inStock;
 
-      // --- Monthly Revenue & Orders Chart (ALL TIME) ---
-      var monthly = data.monthly_summary || [];
-      var mLabels = monthly.map(function(m){
-        var parts = m.month.split('-');
+      // --- Daily Revenue & Orders Chart (Last 30 Days) ---
+      var daily = (data.daily_orders_30d || []).slice().reverse();
+      var mLabels = daily.map(function(d){
+        var parts = d.date.split('-');
         var names = {'01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun','07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'};
-        return (names[parts[1]]||parts[1]) + ' ' + parts[0].slice(2);
+        return parseInt(parts[2]) + ' ' + (names[parts[1]]||parts[1]);
       });
-      var mRevenue = monthly.map(function(m){ return m.revenue; });
-      var mOrders = monthly.map(function(m){ return m.order_count; });
+      var mRevenue = daily.map(function(d){ return d.revenue; });
+      var mOrders = daily.map(function(d){ return d.orders_count; });
       document.getElementById('revenueLoading').style.display = 'none';
       var rc = document.getElementById('revenueChart'); rc.style.display = 'block';
       if(revenueChartObj) revenueChartObj.destroy();

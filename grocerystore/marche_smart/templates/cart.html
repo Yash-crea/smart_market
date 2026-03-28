@@ -123,8 +123,9 @@
                           name="quantity"
                           value="{{ item.quantity }}"
                           min="1"
-                          max="99"
+                          max="{% if item.smart_product %}{{ item.smart_product.stock_quantity|default:0 }}{% elif item.product %}{{ item.product.stock_quantity|default:0 }}{% else %}99{% endif %}"
                           class="cart-qty-input"
+                          data-stock="{% if item.smart_product %}{{ item.smart_product.stock_quantity|default:0 }}{% elif item.product %}{{ item.product.stock_quantity|default:0 }}{% else %}99{% endif %}"
                           onchange="updatePreview(this)"
                         >
                         <button type="button" class="cart-qty-btn" onclick="changeQuantity(this, 1)" aria-label="Increase quantity">
@@ -982,10 +983,40 @@
     }
 
     const input = item.querySelector('.cart-qty-input');
+    const maxStock = parseInt(input.dataset.stock, 10) || 99;
     const currentValue = parseInt(input.value, 10) || 1;
-    const nextValue = Math.min(99, Math.max(1, currentValue + delta));
+    const nextValue = Math.min(maxStock, Math.max(1, currentValue + delta));
+    if (nextValue === currentValue && delta > 0) {
+      alert('Maximum available stock reached (' + maxStock + ' units).');
+      return;
+    }
     input.value = nextValue;
     updatePreview(input);
+
+    // Save quantity via AJAX so page doesn't reload/scroll
+    const form = item.querySelector('.cart-qty-form');
+    if (form) {
+      const formData = new FormData(form);
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          // Update cart summary totals
+          const subtotal = data.cart_total || 0;
+          const tax = subtotal * 0.15;
+          const shipping = subtotal > 0 ? 50 : 0;
+          const total = subtotal + tax + shipping;
+          document.querySelectorAll('.js-summary-subtotal').forEach(el => el.textContent = 'Rs ' + subtotal.toFixed(2));
+          document.querySelectorAll('.js-summary-tax').forEach(el => el.textContent = 'Rs ' + tax.toFixed(2));
+          document.querySelectorAll('.js-summary-total').forEach(el => el.textContent = 'Rs ' + total.toFixed(2));
+        }
+      }).catch(() => {
+        // Fallback: submit form normally if AJAX fails
+        form.submit();
+      });
+    }
   }
 
   function updatePreview(input) {
@@ -994,8 +1025,9 @@
       return;
     }
 
+    const maxStock = parseInt(input.dataset.stock, 10) || 99;
     const unitPrice = parseFloat(item.dataset.price || '0');
-    const quantity = Math.min(99, Math.max(1, parseInt(input.value, 10) || 1));
+    const quantity = Math.min(maxStock, Math.max(1, parseInt(input.value, 10) || 1));
     const itemTotal = unitPrice * quantity;
     const totalTarget = item.querySelector('.js-item-total');
 

@@ -217,7 +217,7 @@
           }
 
           function loadCustomerPBI(){
-          fetch('/api/v1/powerbi/customer-dashboard/', {
+          fetch('/api/v1/powerbi/customer-dashboard/?format=json', {
             method: 'GET',
             credentials: 'same-origin',
             headers: {
@@ -230,6 +230,7 @@
             return r.json();
           })
           .then(function(data){
+            try {
             // --- Monthly spending chart ---
             var monthly = data.spending_patterns && data.spending_patterns.monthly_spending_12m
                         ? data.spending_patterns.monthly_spending_12m : [];
@@ -270,6 +271,12 @@
             var canvas = document.getElementById('spendingChart');
             canvas.style.display = 'block';
             if(customerChart) customerChart.destroy();
+            if(typeof Chart === 'undefined'){
+              document.getElementById('chartLoading').style.display = 'block';
+              document.getElementById('chartLoading').innerHTML = '<p style="color:#e53e3e;">Chart library failed to load.</p>';
+              canvas.style.display = 'none';
+              return;
+            }
             customerChart = new Chart(canvas.getContext('2d'), {
               type: 'bar',
               data: {
@@ -332,6 +339,11 @@
             } else {
               document.getElementById('shoppingPattern').textContent = 'New customer';
             }
+            } catch(renderErr) {
+              console.error('Power BI render error:', renderErr);
+              document.getElementById('chartLoading').style.display = 'block';
+              document.getElementById('chartLoading').innerHTML = '<p style="color:#e53e3e;">Chart error: ' + renderErr.message + '</p>';
+            }
           })
           .catch(function(err){
             console.error('Power BI API error:', err);
@@ -345,6 +357,7 @@
 
         loadCustomerPBI();
         setInterval(loadCustomerPBI, 60000);
+        })();
         </script>
       </div>
 
