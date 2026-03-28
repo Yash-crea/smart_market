@@ -109,6 +109,12 @@
       </div>
       {% endfor %}
     </div>
+    <script>
+      setTimeout(function(){
+        var msgs = document.querySelector('.site-messages');
+        if(msgs){ msgs.style.transition='opacity 0.5s'; msgs.style.opacity='0'; setTimeout(function(){ msgs.remove(); },500); }
+      }, 4000);
+    </script>
     {% endif %}
     {% block content %}
     <!-- Individual page templates will override this block -->

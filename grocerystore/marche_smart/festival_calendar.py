@@ -29,15 +29,15 @@ class FestivalCalendar:
             'boost_end_days': 2,     # Continue boost 2 days after
             'regional': 'hindu_community'
         },
-        'ugadi': {
-            'date': datetime(2026, 3, 19),
-            'name': 'Ugadi (Telugu New Year)',
+        'easter': {
+            'date': datetime(2026, 4, 5),
+            'name': 'Easter',
             'type': 'religious',
             'intensity': 9,  # Scale 1-10
-            'products': ['sweets', 'traditional_items', 'new_clothes', 'decorations', 'puja_items'],
+            'products': ['chocolate', 'eggs', 'cake', 'ham', 'lamb', 'hot_cross_buns', 'sweets', 'decorations'],
             'boost_start_days': 14,  # Start boost 14 days before
-            'boost_end_days': 3,     # Continue boost 3 days after
-            'regional': 'south_indian'
+            'boost_end_days': 2,     # Continue boost 2 days after (Easter Monday)
+            'regional': 'christian_community'
         },
         'eid_ul_fitr': {
             'date': datetime(2026, 3, 21),

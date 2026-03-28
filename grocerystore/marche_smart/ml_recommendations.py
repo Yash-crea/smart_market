@@ -137,7 +137,7 @@ class ContextualRecommendationEngine:
         
         # Category preferences
         category_preferences = recent_orders.values(
-            'product__category__name'
+            'smart_product__category'
         ).annotate(
             order_count=Count('id'),
             total_spent=Sum('subtotal')
@@ -161,15 +161,15 @@ class ContextualRecommendationEngine:
         
         # Price sensitivity (average price points)
         price_stats = recent_orders.aggregate(
-            avg_price=Avg('product__price'),
-            max_price=Avg('product__price'),
-            min_price=Avg('product__price'),
+            avg_price=Avg('smart_product__price'),
+            max_price=Avg('smart_product__price'),
+            min_price=Avg('smart_product__price'),
             total_spent=Sum('subtotal')
         )
         
         return {
             'recent_order_count': recent_orders.count(),
-            'preferred_categories': [cat['product__category__name'] for cat in category_preferences[:3]],
+            'preferred_categories': [cat['smart_product__category'] for cat in category_preferences[:3] if cat['smart_product__category']],
             'preferred_shopping_hours': [h[0] for h in sorted_hours[:2]],
             'weekend_preference': weekend_count > weekday_count,
             'average_order_value': price_stats['avg_price'] or 0,
@@ -187,11 +187,16 @@ class ContextualRecommendationEngine:
         ml_predictions = []
         
         # Generate ML predictions for current seasonal context
-        for product in Product.objects.filter(peak_season=current_season)[:20]:
+        # Use SmartProducts as the primary product model
+        products = SmartProducts.objects.filter(peak_season=current_season, stock_quantity__gt=0)[:20]
+        if not products.exists():
+            products = Product.objects.filter(peak_season=current_season)[:20]
+        
+        for product in products:
             # Prepare contextual data for ML prediction
             product_context = {
                 'price': float(product.price),
-                'category': product.category.name if product.category else 'unknown',
+                'category': product.category if isinstance(product.category, str) else (product.category.name if product.category else 'unknown'),
                 'peak_season': product.peak_season,
                 'weekend_boost': product.weekend_boost,
                 'weather_dependent': product.weather_dependent,
@@ -230,9 +235,9 @@ class ContextualRecommendationEngine:
             
             recommendations.append({
                 'id': product.id,
-                'type': 'regular_product',
+                'type': 'smart_product',
                 'name': product.name,
-                'category': product.category.name if product.category else 'unknown',
+                'category': product.category if isinstance(product.category, str) else (product.category.name if product.category else 'unknown'),
                 'price': float(product.price),
                 'predicted_demand': prediction['predicted_demand'],
                 'confidence_score': prediction['confidence_score'],
@@ -308,21 +313,22 @@ class ContextualRecommendationEngine:
         
         recommendations = []
         
-        # Category-based recommendations
+        # Category-based recommendations using SmartProducts
         if preferred_categories:
-            category_products = Product.objects.filter(
-                category__name__in=preferred_categories,
-                in_stock=True
+            category_products = SmartProducts.objects.filter(
+                category__in=preferred_categories,
+                stock_quantity__gt=0
             )
             
             for product in category_products[:limit]:
                 score = 85  # Base score for preferred category
-                reasons = [f"Based on your preference for {product.category.name} products"]
+                product_cat = product.category or 'unknown'
+                reasons = [f"Based on your preference for {product_cat} products"]
                 
                 # Check if user has purchased similar items
                 previous_purchases = OrderItem.objects.filter(
-                    order__user=user,  # Fixed: use 'user' field instead of 'customer'
-                    product__category=product.category
+                    order__user=user,
+                    smart_product__category=product.category
                 ).count()
                 
                 if previous_purchases > 0:
@@ -331,9 +337,9 @@ class ContextualRecommendationEngine:
                 
                 recommendations.append({
                     'id': product.id,
-                    'type': 'regular_product',
+                    'type': 'smart_product',
                     'name': product.name,
-                    'category': product.category.name,
+                    'category': product.category or 'unknown',
                     'price': float(product.price),
                     'behavioral_score': score,
                     'reasons': reasons
@@ -359,7 +365,7 @@ class ContextualRecommendationEngine:
                         'id': product.id,
                         'type': 'regular_product',
                         'name': product.name,
-                        'category': product.category.name if product.category else 'unknown',
+                        'category': product.category if isinstance(product.category, str) else (product.category.name if product.category else 'unknown'),
                         'price': float(product.price),
                         'behavioral_score': 90,
                         'reasons': [f"You often shop for this at {current_hour}:00"]

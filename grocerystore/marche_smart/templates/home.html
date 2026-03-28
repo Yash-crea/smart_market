@@ -59,7 +59,11 @@
             {% endif %}
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="color: #2b8a3e; font-weight: bold; font-size: 1.2rem;">Rs {{ product.price|floatformat:2 }}</span>
-              <a href="{% url 'smart_market:shop' %}" style="background: #2b8a3e; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem;">View</a>
+              <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" style="background:#2b8a3e; color:white; border:none; padding:0.5rem 1rem; border-radius:6px; cursor:pointer; font-size:0.9rem; font-weight:600;" {% if product.stock_quantity <= 0 %}disabled{% endif %}>🛒 Add to Cart</button>
+              </form>
             </div>
           </div>
         </div>
@@ -99,7 +103,11 @@
             {% endif %}
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="color: #e74c3c; font-weight: bold; font-size: 1.2rem;">Rs {{ product.price|floatformat:2 }}</span>
-              <a href="{% url 'smart_market:shop' %}" style="background: #e74c3c; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem;">View</a>
+              <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" style="background:#e74c3c; color:white; border:none; padding:0.5rem 1rem; border-radius:6px; cursor:pointer; font-size:0.9rem; font-weight:600;" {% if product.stock_quantity <= 0 %}disabled{% endif %}>🛒 Add to Cart</button>
+              </form>
             </div>
           </div>
         </div>
@@ -134,7 +142,50 @@
             </p>
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="color: #3498db; font-weight: bold; font-size: 1.2rem;">Rs {{ product.price|floatformat:2 }}</span>
-              <a href="{% url 'smart_market:shop' %}" style="background: #3498db; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem;">View</a>
+              <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" style="background:#3498db; color:white; border:none; padding:0.5rem 1rem; border-radius:6px; cursor:pointer; font-size:0.9rem; font-weight:600;" {% if product.stock_quantity <= 0 %}disabled{% endif %}>🛒 Add to Cart</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Personalized Recommendations -->
+    {% if personal_recommendations %}
+    <div class="recommendation-category">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h2 style="color: #9b59b6; font-size: 1.8rem; margin: 0;">👤 Recommended for You</h2>
+        <a href="{% url 'smart_market:shop' %}" style="color: #9b59b6; text-decoration: none; font-weight: 600;">View All →</a>
+      </div>
+      
+      <div class="products-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        {% for product in personal_recommendations %}
+        <div class="product-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-left: 4px solid #9b59b6;">
+          {% if product.image_url %}
+            <img src="{{ product.image_url }}" alt="{{ product.name }}" style="width: 100%; height: 180px; object-fit: cover;">
+          {% else %}
+            <div style="width: 100%; height: 180px; background: #e9ecef; display: flex; align-items: center; justify-content: center; color: #6c757d;">
+              📦 {{ product.name|truncatewords:2 }}
+            </div>
+          {% endif %}
+          
+          <div style="padding: 1.25rem;">
+            <h3 style="margin: 0 0 0.5rem 0; color: #333; font-size: 1.1rem;">{{ product.name|truncatewords:6 }}</h3>
+            <p style="margin: 0 0 0.75rem 0; color: #9b59b6; font-size: 0.9rem; font-weight: 600;">
+              👤 {{ product.recommendation_reason }}
+            </p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="color: #9b59b6; font-weight: bold; font-size: 1.2rem;">Rs {{ product.price|floatformat:2 }}</span>
+              <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" style="background:#9b59b6; color:white; border:none; padding:0.5rem 1rem; border-radius:6px; cursor:pointer; font-size:0.9rem; font-weight:600;" {% if product.stock_quantity <= 0 %}disabled{% endif %}>🛒 Add to Cart</button>
+              </form>
             </div>
           </div>
         </div>

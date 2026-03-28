@@ -92,13 +92,19 @@
           </h3>
           <div class="mini-products-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
             {% for product in seasonal_recommendations %}
-            <div class="mini-product-card" style="background: white; border-radius: 8px; padding: 1rem; border: 1px solid #e9ecef; transition: box-shadow 0.2s;">
+            <div class="mini-product-card" style="background: white; border-radius: 8px; padding: 1rem; border: 1px solid #e9ecef; transition: box-shadow 0.2s, transform 0.2s; cursor: pointer;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
               <h4 style="margin: 0 0 0.5rem 0; color: #333; font-size: 0.95rem; line-height: 1.3;">{{ product.name|truncatewords:4 }}</h4>
               <p style="margin: 0 0 0.5rem 0; color: #2b8a3e; font-size: 0.8rem; font-weight: 600;">✨ {{ product.recommendation_reason }}</p>
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #2b8a3e; font-weight: bold; font-size: 1rem;">Rs {{ product.price|floatformat:2 }}</span>
-                <span style="background: #e8f5e8; color: #2b8a3e; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">Recommended</span>
               </div>
+              {% if can_access_cart %}
+              <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin-top: 0.5rem;">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" style="width:100%; background:#2b8a3e; color:white; border:none; padding:0.5rem; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:600;" {% if product.stock_quantity <= 0 %}disabled style="opacity:0.5"{% endif %}>🛒 Add to Cart</button>
+              </form>
+              {% endif %}
             </div>
             {% endfor %}
           </div>
@@ -113,12 +119,19 @@
           <div class="recommendation-group">
             <h3 style="color: #e74c3c; font-size: 1.1rem; margin-bottom: 1rem;">🔥 Trending</h3>
             {% for product in trending_products %}
-            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #e74c3c;">
+            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #e74c3c; cursor:pointer; transition: box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
               <div style="flex: 1;">
                 <p style="margin: 0; color: #333; font-size: 0.9rem; font-weight: 600;">{{ product.name|truncatewords:3 }}</p>
                 <p style="margin: 0; color: #e74c3c; font-size: 0.8rem;">{{ product.recommendation_reason }}</p>
               </div>
-              <span style="color: #e74c3c; font-weight: bold; font-size: 0.9rem;">Rs {{ product.price|floatformat:2 }}</span>
+              <span style="color: #e74c3c; font-weight: bold; font-size: 0.9rem; margin-right: 0.5rem;">Rs {{ product.price|floatformat:2 }}</span>
+              {% if can_access_cart %}
+              <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" style="background:#e74c3c; color:white; border:none; padding:0.4rem 0.75rem; border-radius:4px; cursor:pointer; font-size:0.8rem; white-space:nowrap;" {% if product.stock_quantity <= 0 %}disabled{% endif %}>🛒 Add</button>
+              </form>
+              {% endif %}
             </div>
             {% endfor %}
           </div>
@@ -129,12 +142,19 @@
           <div class="recommendation-group">
             <h3 style="color: #3498db; font-size: 1.1rem; margin-bottom: 1rem;">🌤️ Weather Picks</h3>
             {% for product in weather_recommendations %}
-            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #3498db;">
+            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #3498db; cursor:pointer; transition: box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
               <div style="flex: 1;">
                 <p style="margin: 0; color: #333; font-size: 0.9rem; font-weight: 600;">{{ product.name|truncatewords:3 }}</p>
                 <p style="margin: 0; color: #3498db; font-size: 0.8rem;">{{ product.recommendation_reason }}</p>
               </div>
-              <span style="color: #3498db; font-weight: bold; font-size: 0.9rem;">Rs {{ product.price|floatformat:2 }}</span>
+              <span style="color: #3498db; font-weight: bold; font-size: 0.9rem; margin-right: 0.5rem;">Rs {{ product.price|floatformat:2 }}</span>
+              {% if can_access_cart %}
+              <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" style="background:#3498db; color:white; border:none; padding:0.4rem 0.75rem; border-radius:4px; cursor:pointer; font-size:0.8rem; white-space:nowrap;" {% if product.stock_quantity <= 0 %}disabled{% endif %}>🛒 Add</button>
+              </form>
+              {% endif %}
             </div>
             {% endfor %}
           </div>
@@ -145,12 +165,42 @@
           <div class="recommendation-group">
             <h3 style="color: #f39c12; font-size: 1.1rem; margin-bottom: 1rem;">💰 Price Drops</h3>
             {% for product in discounted_products %}
-            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #f39c12;">
+            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #f39c12; cursor:pointer; transition: box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
               <div style="flex: 1;">
                 <p style="margin: 0; color: #333; font-size: 0.9rem; font-weight: 600;">{{ product.name|truncatewords:3 }}</p>
                 <p style="margin: 0; color: #f39c12; font-size: 0.8rem;">{{ product.recommendation_reason }}</p>
               </div>
-              <span style="color: #f39c12; font-weight: bold; font-size: 0.9rem;">Rs {{ product.price|floatformat:2 }}</span>
+              <span style="color: #f39c12; font-weight: bold; font-size: 0.9rem; margin-right: 0.5rem;">Rs {{ product.price|floatformat:2 }}</span>
+              {% if can_access_cart %}
+              <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" style="background:#f39c12; color:white; border:none; padding:0.4rem 0.75rem; border-radius:4px; cursor:pointer; font-size:0.8rem; white-space:nowrap;" {% if product.stock_quantity <= 0 %}disabled{% endif %}>🛒 Add</button>
+              </form>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          
+          <!-- Personalized Recommendations -->
+          {% if personal_recommendations %}
+          <div class="recommendation-group">
+            <h3 style="color: #9b59b6; font-size: 1.1rem; margin-bottom: 1rem;">👤 For You</h3>
+            {% for product in personal_recommendations %}
+            <div class="compact-product" style="display: flex; align-items: center; background: white; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid #9b59b6; cursor:pointer; transition: box-shadow 0.2s;" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
+              <div style="flex: 1;">
+                <p style="margin: 0; color: #333; font-size: 0.9rem; font-weight: 600;">{{ product.name|truncatewords:3 }}</p>
+                <p style="margin: 0; color: #9b59b6; font-size: 0.8rem;">{{ product.recommendation_reason }}</p>
+              </div>
+              <span style="color: #9b59b6; font-weight: bold; font-size: 0.9rem; margin-right: 0.5rem;">Rs {{ product.price|floatformat:2 }}</span>
+              {% if can_access_cart %}
+              <form method="post" action="{% url 'smart_market:add_to_cart' product.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" style="background:#9b59b6; color:white; border:none; padding:0.4rem 0.75rem; border-radius:4px; cursor:pointer; font-size:0.8rem; white-space:nowrap;" {% if product.stock_quantity <= 0 %}disabled{% endif %}>🛒 Add</button>
+              </form>
+              {% endif %}
             </div>
             {% endfor %}
           </div>

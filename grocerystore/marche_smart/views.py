@@ -13,7 +13,10 @@ from decimal import Decimal
 import uuid
 import json
 import random
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 # ============= ML RECOMMENDATION FUNCTIONS =============
 
@@ -35,8 +38,8 @@ def get_upcoming_festivals():
     
     if current_month == 10:  # October
         festivals.append({'name': 'diwali', 'display_name': 'Diwali', 'date': '2026-10-24'})
-    elif current_month == 3:  # March  
-        festivals.append({'name': 'ugadi', 'display_name': 'Ugadi (Telugu New Year)', 'date': '2026-03-19'})
+    elif current_month in [3, 4]:  # March-April  
+        festivals.append({'name': 'easter', 'display_name': 'Easter', 'date': '2026-04-05'})
     elif current_month == 12:  # December
         festivals.append({'name': 'christmas', 'display_name': 'Christmas', 'date': '2026-12-25'})
     elif current_month == 1:  # January
@@ -44,19 +47,188 @@ def get_upcoming_festivals():
     
     return festivals
 
-def get_seasonal_recommendations(limit=6):
-    """Get personalized seasonal recommendations"""
+
+_last_demand_recalc = None
+
+def recalculate_demand_scores():
+    """
+    Recalculate predicted_demand_7d and avg_weekly_sales from real OrderItem data.
+    Throttled to run at most once every 10 minutes to avoid overhead on every page load.
+    """
+    global _last_demand_recalc
+    now = datetime.now()
+
+    # Throttle: skip if recalculated within the last 10 minutes
+    if _last_demand_recalc and (now - _last_demand_recalc).total_seconds() < 600:
+        return 0
+
+    seven_days_ago = now - timedelta(days=7)
+    thirty_days_ago = now - timedelta(days=30)
+
+    # Count units sold per SmartProduct in last 7 days
+    demand_7d = (
+        OrderItem.objects
+        .filter(smart_product__isnull=False, order__created_at__gte=seven_days_ago)
+        .values('smart_product_id')
+        .annotate(total_sold=Sum('quantity'))
+    )
+    demand_map_7d = {row['smart_product_id']: row['total_sold'] for row in demand_7d}
+
+    # Average weekly sales from last 30 days
+    demand_30d = (
+        OrderItem.objects
+        .filter(smart_product__isnull=False, order__created_at__gte=thirty_days_ago)
+        .values('smart_product_id')
+        .annotate(total_sold=Sum('quantity'))
+    )
+    demand_map_30d = {row['smart_product_id']: row['total_sold'] for row in demand_30d}
+
+    updated = 0
+    for sp in SmartProducts.objects.all():
+        new_demand_7d = demand_map_7d.get(sp.id, 0)
+        weeks_in_period = max(4.0, 1.0)  # 30 days ≈ 4 weeks
+        new_avg_weekly = Decimal(str(round(demand_map_30d.get(sp.id, 0) / weeks_in_period, 2)))
+
+        if sp.predicted_demand_7d != new_demand_7d or sp.avg_weekly_sales != new_avg_weekly:
+            sp.predicted_demand_7d = new_demand_7d
+            sp.avg_weekly_sales = new_avg_weekly
+            sp.save(update_fields=['predicted_demand_7d', 'avg_weekly_sales'])
+            updated += 1
+
+    logger.info(f"Demand recalculation: updated {updated} products from {OrderItem.objects.count()} order items")
+    _last_demand_recalc = now
+    return updated
+
+
+def get_ml_recommendations(user=None, algorithm='hybrid_ml', limit=10):
+    """
+    Get ML-powered recommendations using the ContextualRecommendationEngine.
+    Returns SmartProduct instances with recommendation_reason and recommendation_type attached.
+    Falls back to simple DB queries if ML engine fails.
+    """
+    try:
+        from .ml_recommendations import ContextualRecommendationEngine
+
+        engine = ContextualRecommendationEngine()
+        result = engine.get_personalized_recommendations(
+            user=user,
+            algorithm=algorithm,
+            limit=limit
+        )
+
+        recs = result.get('recommendations', [])
+        if not recs:
+            return []
+
+        # Fetch actual product instances by ID
+        rec_ids = [r['id'] for r in recs]
+        # Build lookup: the engine may return Product or SmartProduct ids
+        smart_lookup = {sp.id: sp for sp in SmartProducts.objects.filter(id__in=rec_ids)}
+        product_lookup = {p.id: p for p in Product.objects.filter(id__in=rec_ids)}
+
+        products = []
+        for rec in recs:
+            pid = rec['id']
+            product = smart_lookup.get(pid) or product_lookup.get(pid)
+            if product:
+                reasons = rec.get('reasons', [])
+                product.recommendation_reason = reasons[0] if reasons else rec.get('algorithm', 'ML recommended')
+                product.ml_confidence = rec.get('confidence_score', rec.get('contextual_score', rec.get('hybrid_score', 0)))
+                product.ml_reasons = reasons
+
+                # Map algorithm source to recommendation_type
+                if 'seasonal' in algorithm or 'contextual_score' in rec:
+                    product.recommendation_type = 'seasonal'
+                elif 'weather' in algorithm or 'weather_relevance_score' in rec:
+                    product.recommendation_type = 'weather'
+                elif 'behavior' in algorithm or 'behavioral_score' in rec:
+                    product.recommendation_type = 'personal'
+                else:
+                    # Hybrid — use scoring factors to pick type
+                    factors = rec.get('scoring_factors', [])
+                    if 'user_behavior' in factors:
+                        product.recommendation_type = 'personal'
+                    elif 'weather_context' in factors:
+                        product.recommendation_type = 'weather'
+                    else:
+                        product.recommendation_type = 'seasonal'
+                products.append(product)
+
+        return products
+    except Exception as e:
+        logger.warning(f"ML engine failed, using fallback: {e}")
+        return []
+
+
+def get_user_personal_recommendations(user, limit=4):
+    """
+    Recommend products based on the logged-in user's actual purchase history.
+    Finds categories the user buys most, then recommends other products in those categories
+    that the user hasn't purchased yet.
+    """
+    if not user or not user.is_authenticated:
+        return []
+
+    # Get user's purchased product IDs
+    purchased_ids = set(
+        OrderItem.objects
+        .filter(order__user=user, smart_product__isnull=False)
+        .values_list('smart_product_id', flat=True)
+    )
+
+    if not purchased_ids:
+        return []
+
+    # Find user's preferred categories (by order count)
+    category_prefs = (
+        OrderItem.objects
+        .filter(order__user=user, smart_product__isnull=False)
+        .values('smart_product__category')
+        .annotate(cnt=Count('id'))
+        .order_by('-cnt')
+    )
+    preferred_cats = [row['smart_product__category'] for row in category_prefs if row['smart_product__category']]
+
+    if not preferred_cats:
+        return []
+
+    # Recommend unseen products in preferred categories, ordered by demand
+    personal_recs = list(
+        SmartProducts.objects
+        .filter(category__in=preferred_cats, stock_quantity__gt=0)
+        .exclude(id__in=purchased_ids)
+        .order_by('-predicted_demand_7d', '-avg_weekly_sales')[:limit]
+    )
+
+    for product in personal_recs:
+        product.recommendation_reason = f"Based on your purchase history"
+        product.recommendation_type = "personal"
+
+    return personal_recs
+
+
+def get_seasonal_recommendations(limit=6, user=None):
+    """Get ML-powered seasonal recommendations with fallback to DB queries"""
+    # First: recalculate demand from real order data
+    recalculate_demand_scores()
+
+    # Try ML engine first
+    ml_recs = get_ml_recommendations(user=user, algorithm='ml_seasonal', limit=limit)
+    if ml_recs:
+        return ml_recs
+
+    # Fallback: enhanced DB-based recommendations
     current_season = get_current_season()
     is_weekend = datetime.now().weekday() >= 5
     upcoming_festivals = get_upcoming_festivals()
     
     recommendations = []
     
-    # 1. Seasonal Products (current season)
+    # 1. Seasonal Products (current season) — now ordered by REAL demand data
     seasonal_products = SmartProducts.objects.filter(
         peak_season=current_season,
         stock_quantity__gt=0
-    ).order_by('-seasonal_priority', '-predicted_demand_7d')[:3]
+    ).order_by('-predicted_demand_7d', '-seasonal_priority')[:3]
     
     for product in seasonal_products:
         product.recommendation_reason = f"Perfect for {current_season} season"
@@ -90,15 +262,15 @@ def get_seasonal_recommendations(limit=6):
         
         recommendations.extend(festival_products)
     
-    # 4. High Demand Predictions
+    # 4. Trending — now based on REAL order volume
     if len(recommendations) < limit:
         trending_products = SmartProducts.objects.filter(
-            predicted_demand_7d__gt=50,
+            predicted_demand_7d__gt=0,
             stock_quantity__gt=0
         ).exclude(id__in=[p.id for p in recommendations]).order_by('-predicted_demand_7d')[:limit-len(recommendations)]
         
         for product in trending_products:
-            product.recommendation_reason = "High demand predicted"
+            product.recommendation_reason = f"Trending — {product.predicted_demand_7d} sold this week"
             product.recommendation_type = "trending"
         
         recommendations.extend(trending_products)
@@ -117,13 +289,18 @@ def get_seasonal_recommendations(limit=6):
     
     return recommendations[:limit]
 
-def get_weather_based_recommendations():
-    """Get weather-based product recommendations"""
+def get_weather_based_recommendations(user=None):
+    """Get weather-based product recommendations using ML engine with fallback"""
+    # Try ML engine first
+    ml_recs = get_ml_recommendations(user=user, algorithm='ml_weather', limit=3)
+    if ml_recs:
+        return ml_recs
+
+    # Fallback: DB-based weather recommendations
     from .models import WeatherData
     today = datetime.now().date()
     
     try:
-        # Try today first, fall back to most recent available
         try:
             weather = WeatherData.objects.get(date=today)
         except WeatherData.DoesNotExist:
@@ -156,7 +333,6 @@ def get_weather_based_recommendations():
         else:
             reason = "Weather appropriate"
 
-        # Fallback: if keyword match found nothing, just use weather-dependent products
         if not weather_products:
             weather_products = list(SmartProducts.objects.filter(
                 weather_dependent=True,
@@ -1033,6 +1209,7 @@ def get_recommendations_api(request):
 
 def home(request):
     q = request.GET.get('q', '').strip()
+    user = request.user if request.user.is_authenticated else None
     
     if q:
         # Search in both Product and SmartProducts models
@@ -1047,6 +1224,7 @@ def home(request):
         seasonal_recommendations = []
         trending_products = []
         weather_recommendations = []
+        personal_recommendations = []
     else:
         # Get regular products for display
         regular_products = Product.objects.all()[:3]
@@ -1054,20 +1232,23 @@ def home(request):
         products = list(regular_products) + list(smart_products)
         products = products[:9]
         
-        # Get ML-powered recommendations
-        seasonal_recommendations = get_seasonal_recommendations(limit=6)
+        # Get ML-powered recommendations (passes user for personalization)
+        seasonal_recommendations = get_seasonal_recommendations(limit=6, user=user)
         
-        # Get trending products (high predicted demand)
+        # Get trending products — ordered by REAL demand from orders
         trending_products = SmartProducts.objects.filter(
-            predicted_demand_7d__gt=50
+            predicted_demand_7d__gt=0
         ).order_by('-predicted_demand_7d')[:4]
         
         for product in trending_products:
-            product.recommendation_reason = "High demand this week"
+            product.recommendation_reason = f"Trending — {product.predicted_demand_7d} sold this week"
             product.recommendation_type = "trending"
         
         # Get weather-based recommendations
-        weather_recommendations = get_weather_based_recommendations()
+        weather_recommendations = get_weather_based_recommendations(user=user)
+        
+        # Get user-personalized recommendations
+        personal_recommendations = get_user_personal_recommendations(user, limit=4)
     
     # Get current context information
     current_season = get_current_season()
@@ -1080,6 +1261,7 @@ def home(request):
         'seasonal_recommendations': seasonal_recommendations,
         'trending_products': trending_products,
         'weather_recommendations': weather_recommendations,
+        'personal_recommendations': personal_recommendations,
         'current_season': current_season,
         'upcoming_festivals': upcoming_festivals,
         'is_weekend': is_weekend,
@@ -1219,20 +1401,22 @@ def shop(request):
     show_recommendations = not (search_query or category_filter or min_price or max_price)
     
     if show_recommendations:
-        # Get seasonal recommendations
-        seasonal_recommendations = get_seasonal_recommendations(limit=4)
+        user = request.user if request.user.is_authenticated else None
         
-        # Get trending products
+        # Get seasonal recommendations (ML-powered with fallback)
+        seasonal_recommendations = get_seasonal_recommendations(limit=4, user=user)
+        
+        # Get trending products — ordered by REAL demand from orders
         trending_products = SmartProducts.objects.filter(
-            predicted_demand_7d__gt=40
+            predicted_demand_7d__gt=0
         ).order_by('-predicted_demand_7d')[:4]
         
         for product in trending_products:
-            product.recommendation_reason = "Popular this week"
+            product.recommendation_reason = f"Trending — {product.predicted_demand_7d} sold this week"
             product.recommendation_type = "trending"
         
-        # Get weather-based recommendations
-        weather_recommendations = get_weather_based_recommendations()[:3]
+        # Get weather-based recommendations (ML-powered with fallback)
+        weather_recommendations = get_weather_based_recommendations(user=user)[:3]
         
         # Get products on sale or recently restocked
         discounted_products = SmartProducts.objects.filter(
@@ -1243,11 +1427,15 @@ def shop(request):
             discount_pct = (float(product.promotion_lift) - 1.0) * 100 if product.promotion_lift > 1 else 0
             product.recommendation_reason = f"Special promotion - {discount_pct:.0f}% off"
             product.recommendation_type = "discount"
+        
+        # User-personalized recommendations
+        personal_recommendations = get_user_personal_recommendations(user, limit=4)
     else:
         seasonal_recommendations = []
         trending_products = []
         weather_recommendations = []
         discounted_products = []
+        personal_recommendations = []
     
     # Get current context information
     current_season = get_current_season()
@@ -1266,6 +1454,7 @@ def shop(request):
         'trending_products': trending_products,
         'weather_recommendations': weather_recommendations,
         'discounted_products': discounted_products,
+        'personal_recommendations': personal_recommendations,
         'show_recommendations': show_recommendations,
         'current_season': current_season,
         'upcoming_festivals': upcoming_festivals,
