@@ -100,6 +100,16 @@
   </header>
 
   <main>
+    {% if messages %}
+    <div class="site-messages">
+      {% for message in messages %}
+      <div class="site-msg site-msg-{{ message.tags|default:'info' }}">
+        <i class="fas {% if 'error' in message.tags or 'danger' in message.tags %}fa-exclamation-circle{% elif 'success' in message.tags %}fa-check-circle{% elif 'warning' in message.tags %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %}"></i>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% block content %}
     <!-- Individual page templates will override this block -->
     {% endblock %}
@@ -148,6 +158,12 @@
   </div>
 
   <style>
+    .site-messages { max-width:900px; margin:1rem auto; padding:0 1rem; }
+    .site-msg { display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem; margin-bottom:.5rem; border-radius:8px; font-size:.95rem; background:#ebf8ff; color:#2b6cb0; border:1px solid #bee3f8; }
+    .site-msg-error, .site-msg-danger { background:#fff5f5; color:#c53030; border:1px solid #feb2b2; }
+    .site-msg-success { background:#f0fff4; color:#276749; border:1px solid #9ae6b4; }
+    .site-msg-warning { background:#fffff0; color:#975a16; border:1px solid #fefcbf; }
+
     .cart-link {
       position: relative;
       display: inline-flex;

@@ -332,13 +332,13 @@ def unified_login(request):
             
             # Determine user type and redirect to appropriate dashboard
             if user.groups.filter(name='Owner').exists():
-                messages.success(request, f'Welcome back, {user.get_full_name() or user.username}! Access granted to Owner Dashboard.')
+                messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
                 return redirect('smart_market:owner_dashboard')
             elif user.groups.filter(name='Staff').exists():
-                messages.success(request, f'Welcome back, {user.get_full_name() or user.username}! Access granted to Staff Dashboard.')
+                messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
                 return redirect('smart_market:staff_dashboard')
             elif user.groups.filter(name='Customer').exists():
-                messages.success(request, f'Welcome back, {user.get_full_name() or user.username}! Access granted to Customer Dashboard.')
+                messages.success(request, f'Welcome back, {user.get_full_name() or user.username}!')
                 return redirect('smart_market:customer_dashboard')
             else:
                 # Default customer access for users without specific groups
