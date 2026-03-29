@@ -761,6 +761,9 @@ def add_product(request):
 @login_required
 @user_passes_test(lambda u: u.groups.filter(name='Owner').exists(), login_url='smart_market:unified_login')
 @require_POST
+@login_required
+@user_passes_test(lambda u: u.groups.filter(name='Owner').exists(), login_url='smart_market:unified_login')
+@require_POST
 def edit_product(request):
     """Edit existing product"""
     try:

@@ -135,7 +135,7 @@
   </div>
 
   <!-- Edit Product Form -->
-  <div id="edit-product-form" class="product-form" style="display: none;">
+  <div id="edit-product-form" class="product-form" style="display: none; position: relative; z-index: 100; background: white; border: 2px solid #007bff; border-radius: 10px; padding: 20px; margin: 20px 0;">
     <h3>Edit Product</h3>
     <form method="post" action="{% url 'smart_market:edit_product' %}">
       {% csrf_token %}
@@ -169,19 +169,27 @@ function hideAddForm() {
 }
 
 function showEditForm(id, type, name, price, stock, description, imageUrl) {
+  console.log('Showing edit form for:', name); // Debug log
+  
   document.getElementById('edit-id').value = id;
   document.getElementById('edit-type').value = type;
   document.getElementById('edit-name').value = name;
   document.getElementById('edit-price').value = price;
-  document.getElementById('edit-stock').value = stock;
-  document.getElementById('edit-description').value = description;
-  document.getElementById('edit-image').value = imageUrl;
+  document.getElementById('edit-stock').value = stock || 0;
+  document.getElementById('edit-description').value = description || '';
+  document.getElementById('edit-image').value = imageUrl || '';
   
+  // Hide add form and show edit form
   document.getElementById('add-product-form').style.display = 'none';
   document.getElementById('edit-product-form').style.display = 'block';
+  
+  // Scroll to edit form
+  document.getElementById('edit-product-form').scrollIntoView({ behavior: 'smooth' });
+  console.log('Edit form should now be visible'); // Debug log
 }
 
 function showEditFormFromData(button) {
+  console.log('Edit button clicked'); // Debug log
   const id = button.getAttribute('data-product-id');
   const type = button.getAttribute('data-product-type');
   const name = button.getAttribute('data-product-name');
@@ -190,6 +198,7 @@ function showEditFormFromData(button) {
   const description = button.getAttribute('data-product-description');
   const imageUrl = button.getAttribute('data-product-image');
   
+  console.log('Product data:', {id, type, name, price, stock}); // Debug log
   showEditForm(id, type, name, price, stock, description, imageUrl);
 }
 
