@@ -903,21 +903,28 @@ def powerbi_customer_dashboard(request):
             end_date = local_now.date()
             start_date = end_date - timedelta(days=30)
             
-            # Create human-readable date range for display - MONTHLY FOCUS
-            def format_monthly_range(start_date, end_date):
-                """Create a readable month range like 'February - March 2026'"""
-                if start_date.year == end_date.year:
-                    if start_date.month == end_date.month:
-                        # Same month
-                        return f"{end_date.strftime('%B %Y')}"
+            # Create human-readable date range for display
+            def format_date_range(start_date, end_date):
+                """Create a readable date range like 'March 28, 29, 30'"""
+                if start_date.month == end_date.month and start_date.year == end_date.year:
+                    # Same month - show "March 28, 29, 30"
+                    month_name = start_date.strftime('%B')
+                    if (end_date - start_date).days <= 7:
+                        # Show last few days for short ranges
+                        days = []
+                        current = end_date - timedelta(days=min(6, (end_date - start_date).days))
+                        while current <= end_date:
+                            days.append(str(current.day))
+                            current += timedelta(days=1)
+                        return f"{month_name} {', '.join(days)}"
                     else:
-                        # Different months, same year
-                        return f"{start_date.strftime('%B')} - {end_date.strftime('%B %Y')}"
+                        # Show start and end for longer ranges
+                        return f"{month_name} {start_date.day} - {end_date.day}, {end_date.year}"
                 else:
-                    # Different years
-                    return f"{start_date.strftime('%B %Y')} - {end_date.strftime('%B %Y')}"
+                    # Different months
+                    return f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
             
-            current_month_range = format_monthly_range(start_date, end_date)
+            current_date_range = format_date_range(start_date, end_date)
             
             # Get daily order totals for last 30 days
             daily_qs = customer_orders.filter(
