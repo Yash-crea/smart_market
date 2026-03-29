@@ -59,6 +59,7 @@
                   <th>Date</th>
                   <th>Items</th>
                   <th>Total</th>
+                  <th>Delivery</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -70,6 +71,13 @@
                     <td class="order-date">{{ order.created_at|date:"M d, Y" }}</td>
                     <td class="order-items">{{ order.items.count }} item{{ order.items.count|pluralize }}</td>
                     <td class="order-total">Rs {{ order.total_amount|floatformat:2 }}</td>
+                    <td class="delivery-method">
+                      {% if order.delivery_method == 'store_pickup' %}
+                        <span class="delivery-badge pickup"><i class="fas fa-store me-1"></i>Pickup</span>
+                      {% else %}
+                        <span class="delivery-badge delivery"><i class="fas fa-truck me-1"></i>Delivery</span>
+                      {% endif %}
+                    </td>
                     <td>
                       <span class="status-badge status-{{ order.status }}">
                         {% if order.status == 'pending' %}🕐 Pending

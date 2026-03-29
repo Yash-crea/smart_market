@@ -41,7 +41,22 @@
                 <h3>Shipping Information</h3>
                 <div class="info-grid">
                     <div class="info-item">
-                        <label>Address:</label>
+                        <label>Delivery Method:</label>
+                        <span class="delivery-method">
+                            {% if order.delivery_method == 'store_pickup' %}
+                                <i class="fas fa-store"></i> {{ order.get_delivery_method_display_formatted }}
+                            {% else %}
+                                <i class="fas fa-truck"></i> {{ order.get_delivery_method_display }}
+                                {% if order.shipping_cost > 0 %}
+                                    (Rs {{ order.shipping_cost }})
+                                {% else %}
+                                    (Free)
+                                {% endif %}
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <label>{% if order.delivery_method == 'store_pickup' %}Pickup Location:{% else %}Address:{% endif %}</label>
                         <span>{{ order.shipping_address }}</span>
                     </div>
                     <div class="info-item">

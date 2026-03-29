@@ -3,29 +3,251 @@
 {% load static %}
 
 {% block content %}
+<style>
+  .about {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    padding: 2rem 0;
+  }
+  
+  .about-hero {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  }
+  
+  .about-hero h1 {
+    font-size: 3rem;
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    font-weight: 700;
+  }
+  
+  .about-hero .subtitle {
+    font-size: 1.3rem;
+    color: #7f8c8d;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+  
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin: 3rem 0;
+  }
+  
+  .feature-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+  }
+  
+  .feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #3498db;
+  }
+  
+  .feature-card h3 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    font-size: 1.4rem;
+  }
+  
+  .feature-card p {
+    color: #7f8c8d;
+    line-height: 1.6;
+  }
+  
+  .mission-section {
+    background: white;
+    padding: 3rem;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin: 3rem 0;
+    text-align: center;
+  }
+  
+  .mission-section h2 {
+    color: #2c3e50;
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .mission-text {
+    font-size: 1.2rem;
+    color: #555;
+    line-height: 1.8;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .stats-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    margin: 3rem 0;
+  }
+  
+  .stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  }
+  
+  .stat-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .stat-label {
+    font-size: 1rem;
+    opacity: 0.9;
+  }
+  
+  .team-section {
+    background: white;
+    padding: 3rem;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    text-align: center;
+  }
+  
+  .team-section h2 {
+    color: #2c3e50;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .team-description {
+    font-size: 1.1rem;
+    color: #7f8c8d;
+    line-height: 1.7;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  @media (max-width: 768px) {
+    .about-hero h1 {
+      font-size: 2.2rem;
+    }
+    
+    .about-hero .subtitle {
+      font-size: 1.1rem;
+    }
+    
+    .features-grid {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+    
+    .feature-card {
+      padding: 1.5rem;
+    }
+  }
+</style>
+
   <section class="about">
     <div class="max-width">
-      <div class="about-header">
-        <h1>About Marche Smart</h1>
-        <button id="editAboutBtn" class="btn">Edit</button>
+      <!-- Hero Section -->
+      <div class="about-hero">
+        <h1>About Marché Smart</h1>
+        <p class="subtitle">Revolutionizing local grocery shopping with intelligent e-commerce solutions</p>
+        <p class="mission-text">Marché Smart is an intelligent e-commerce platform built to support local supermarkets and producers. We combine online shopping and smart recommendations to help businesses grow while giving customers a simple and modern shopping experience.</p>
       </div>
 
-      <div class="about-grid">
-      
+      <!-- Features Grid -->
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🛒</div>
+          <h3>Smart Shopping</h3>
+          <p>AI-powered recommendations help customers discover products they love while supporting local businesses.</p>
         </div>
-        <div class="about-text">
-          <div id="aboutView">
-            <p id="aboutDesc">Marché Smart is an intelligent e-commerce platform built to support local supermarkets and producers. We combine online shopping and smart recommendations, to help businesses grow while giving customers a simple and modern shopping experience.</p>
-          </div>
-          <form id="aboutEditForm" style="display:none">
-            {% csrf_token %}
-            <textarea id="aboutDescInput" rows="6" class="input"></textarea>
-            <div style="margin-top:0.6rem; display:flex; gap:0.6rem; align-items:center;">
-              <button id="saveAboutBtn" type="submit" class="btn primary">Save</button>
-              <button id="cancelAboutBtn" type="button" class="btn">Cancel</button>
-            </div>
-          </form>
+        
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <h3>Modern Experience</h3>
+          <p>Intuitive digital platform that makes grocery shopping convenient, fast, and enjoyable for everyone.</p>
         </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🏪</div>
+          <h3>Local Support</h3>
+          <p>Empowering local supermarkets and producers with tools to compete in the digital marketplace.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Business Analytics</h3>
+          <p>Advanced insights and forecasting help store owners make data-driven decisions for growth.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🚚</div>
+          <h3>Flexible Delivery</h3>
+          <p>Multiple delivery options including home delivery and convenient store pickup services.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Secure & Reliable</h3>
+          <p>Enterprise-grade security ensuring safe transactions and protecting customer data privacy.</p>
+        </div>
+      </div>
+
+      <!-- Statistics Section -->
+      <div class="stats-section">
+        <div class="stat-card">
+          <div class="stat-number">500+</div>
+          <div class="stat-label">Happy Customers</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-number">50+</div>
+          <div class="stat-label">Local Partners</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-number">10K+</div>
+          <div class="stat-label">Products Available</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-number">24/7</div>
+          <div class="stat-label">Customer Support</div>
+        </div>
+      </div>
+
+      <!-- Mission Section -->
+      <div class="mission-section">
+        <h2>Our Mission</h2>
+        <p class="mission-text">
+          We believe that technology should strengthen communities, not replace them. Our mission is to bridge the gap between traditional local commerce and modern digital convenience. By providing cutting-edge e-commerce tools to local supermarkets and producers, we help them thrive in an increasingly digital world while preserving the personal touch that makes local shopping special.
+        </p>
+      </div>
+
+      <!-- Team Section -->
+      <div class="team-section">
+        <h2>Built with Passion</h2>
+        <p class="team-description">
+          Our team is dedicated to creating technology that makes a real difference in people's lives. We combine expertise in e-commerce, artificial intelligence, and local business needs to deliver a platform that truly serves both merchants and customers. Every feature is designed with care, tested thoroughly, and refined based on real feedback from our community.
+        </p>
       </div>
     </div>
   </section>

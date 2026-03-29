@@ -513,6 +513,11 @@ class Order(models.Model):
         ('refunded', 'Refunded'),
     ]
     
+    DELIVERY_METHOD_CHOICES = [
+        ('home_delivery', 'Home Delivery'),
+        ('store_pickup', 'Store Pickup'),
+    ]
+    
     # Link to Django User instead of Customers for unified auth
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
     order_number = models.CharField(max_length=20, unique=True)
@@ -522,6 +527,16 @@ class Order(models.Model):
     customer_name = models.CharField(max_length=150)
     customer_email = models.EmailField()
     customer_phone = models.CharField(max_length=20, blank=True)
+    
+    # Delivery method
+    delivery_method = models.CharField(
+        max_length=20, 
+        choices=DELIVERY_METHOD_CHOICES, 
+        default='home_delivery',
+        help_text="Whether order is for home delivery or store pickup"
+    )
+    pickup_store = models.CharField(max_length=50, blank=True, null=True, 
+                                   help_text="Store location if store pickup is selected")
     
     # Shipping address
     shipping_address = models.TextField()
@@ -543,6 +558,19 @@ class Order(models.Model):
     
     def __str__(self):
         return f"Order #{self.order_number} - {self.user.username}"
+    
+    def get_delivery_method_display_formatted(self):
+        """Get a formatted display of delivery method with pickup store if applicable"""
+        if self.delivery_method == 'store_pickup':
+            store_names = {
+                'port_louis': 'Port Louis (Main Branch)',
+                'rose_hill': 'Rose Hill',
+                'curepipe': 'Curepipe'
+            }
+            store_name = store_names.get(self.pickup_store, self.pickup_store or 'Unknown Store')
+            return f"Store Pickup - {store_name}"
+        else:
+            return "Home Delivery"
     
     def save(self, *args, **kwargs):
         if not self.order_number:

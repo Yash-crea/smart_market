@@ -2969,6 +2969,8 @@ def process_payment(request, cart=None, total_amount=None):
             customer_name=customer_name,
             customer_email=customer_email,
             customer_phone=customer_phone,
+            delivery_method=delivery_method,
+            pickup_store=pickup_store if delivery_method == 'store_pickup' else None,
             shipping_address=shipping_address,
             shipping_city=shipping_city,
             shipping_postal_code=shipping_postal_code,

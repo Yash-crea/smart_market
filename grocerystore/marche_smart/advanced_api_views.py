@@ -620,8 +620,9 @@ def powerbi_owner_dashboard(request):
                 if hasattr(order, 'total_amount') and order.total_amount:
                     total_revenue += float(order.total_amount)
             
-            # Recent orders (last 7 days)
-            week_ago = timezone.now() - timedelta(days=7)
+            # Recent orders (last 7 days) - using local timezone
+            local_now = timezone.localtime()
+            week_ago = local_now - timedelta(days=7)
             recent_orders = all_orders.filter(created_at__gte=week_ago).order_by('-created_at')[:10]
             
         except Exception as e:
@@ -664,18 +665,26 @@ def powerbi_owner_dashboard(request):
         
         # === TIME SERIES DATA ===
         try:
-            # Daily orders & revenue for last 30 days
+            # Get current local date (user's timezone)
+            from datetime import date
+            local_now = timezone.localtime()
+            today = local_now.date()
+            
+            # Daily orders & revenue for last 30 days (using local dates)
             daily_orders = []
             for i in range(30):
-                date = (timezone.now() - timedelta(days=i)).date()
-                day_orders = all_orders.filter(created_at__date=date)
+                date_filter = today - timedelta(days=i)
+                day_orders = all_orders.filter(created_at__date=date_filter)
                 day_count = day_orders.count()
                 day_revenue = sum(float(o.total_amount) for o in day_orders if o.total_amount)
                 daily_orders.append({
-                    'date': date.isoformat(),
+                    'date': date_filter.isoformat(),
                     'orders_count': day_count,
                     'revenue': round(day_revenue, 2)
                 })
+            
+            # Reverse to show oldest first for Power BI charts
+            daily_orders.reverse()
 
             # Monthly summary covering ALL historical months
             from django.db.models.functions import TruncMonth
@@ -685,17 +694,26 @@ def powerbi_owner_dashboard(request):
                 revenue=Sum('total_amount')
             ).order_by('month')
             for entry in monthly_qs:
-                monthly_summary.append({
-                    'month': entry['month'].strftime('%Y-%m'),
-                    'order_count': entry['order_count'],
-                    'revenue': round(float(entry['revenue'] or 0), 2)
-                })
+                if entry['month']:
+                    monthly_summary.append({
+                        'month': entry['month'].strftime('%Y-%m'),
+                        'order_count': entry['order_count'],
+                        'revenue': round(float(entry['revenue'] or 0), 2)
+                    })
         except Exception as e:
             daily_orders = []
             monthly_summary = []
         
         # Construct response optimized for Power BI
         dashboard_data = {
+            # === DEBUG INFO ===
+            'debug_info': {
+                'current_utc': timezone.now().isoformat(),
+                'current_local': timezone.localtime().isoformat(),
+                'timezone_name': str(timezone.get_current_timezone()),
+                'data_generated_at': timezone.localtime().strftime('%Y-%m-%d %H:%M:%S %Z')
+            },
+            
             # === INVENTORY SECTION ===
             'inventory_metrics': {
                 'total_products': regular_count + smart_count,
@@ -765,7 +783,7 @@ def powerbi_owner_dashboard(request):
             ],
             
             # === METADATA ===
-            'report_generated': timezone.now().isoformat(),
+            'report_generated': timezone.localtime().isoformat(),
             'data_period': '30_days',
             'dashboard_version': '1.0'
         }
@@ -780,7 +798,7 @@ def powerbi_owner_dashboard(request):
         logger.error(f'Dashboard data generation failed: {e}')
         return Response({
             'error': 'Dashboard data generation failed. Please try again later.',
-            'report_generated': timezone.now().isoformat(),
+            'report_generated': timezone.localtime().isoformat(),
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -873,19 +891,38 @@ def powerbi_customer_dashboard(request):
             # If no months with orders, add current month as zero
             if not monthly_spending:
                 monthly_spending.append({
-                    'month': timezone.now().strftime('%Y-%m'),
+                    'month': timezone.localtime().strftime('%Y-%m'),
                     'total_spent': 0,
                     'order_count': 0
                 })
 
             # Daily spending pattern — Last 30 days for Power BI trend charts
             daily_spending = []
-            end_date = timezone.now().date()
+            from datetime import date
+            local_now = timezone.localtime()
+            end_date = local_now.date()
             start_date = end_date - timedelta(days=30)
+            
+            # Create human-readable date range for display - MONTHLY FOCUS
+            def format_monthly_range(start_date, end_date):
+                """Create a readable month range like 'February - March 2026'"""
+                if start_date.year == end_date.year:
+                    if start_date.month == end_date.month:
+                        # Same month
+                        return f"{end_date.strftime('%B %Y')}"
+                    else:
+                        # Different months, same year
+                        return f"{start_date.strftime('%B')} - {end_date.strftime('%B %Y')}"
+                else:
+                    # Different years
+                    return f"{start_date.strftime('%B %Y')} - {end_date.strftime('%B %Y')}"
+            
+            current_month_range = format_monthly_range(start_date, end_date)
             
             # Get daily order totals for last 30 days
             daily_qs = customer_orders.filter(
-                created_at__date__gte=start_date
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date
             ).annotate(
                 day=TruncDate('created_at')
             ).values('day').annotate(
@@ -896,10 +933,11 @@ def powerbi_customer_dashboard(request):
             # Create a complete 30-day dataset including days with no orders
             daily_data = {}
             for entry in daily_qs:
-                daily_data[entry['day']] = {
-                    'total_spent': round(float(entry['total_spent'] or 0), 2),
-                    'order_count': entry['order_count']
-                }
+                if entry['day']:
+                    daily_data[entry['day']] = {
+                        'total_spent': round(float(entry['total_spent'] or 0), 2),
+                        'order_count': entry['order_count']
+                    }
             
             # Fill in missing days with zero values
             for i in range(31):
@@ -993,9 +1031,9 @@ def powerbi_customer_dashboard(request):
         orders_this_month = 0
 
         try:
-            member_since_days = (timezone.now().date() - request.user.date_joined.date()).days
+            member_since_days = (timezone.localtime().date() - request.user.date_joined.date()).days
             orders_this_month = customer_orders.filter(
-                created_at__gte=timezone.now().replace(day=1)
+                created_at__gte=timezone.localtime().replace(day=1)
             ).count()
         except:
             pass
@@ -1089,6 +1127,15 @@ def powerbi_customer_dashboard(request):
             
             # === POWER BI ANALYTICS SECTION ===
             'analytics_data': {
+                # Date range tracking for customer dashboard
+                'tracking_period': {
+                    'date_range_display': current_date_range,
+                    'period_start': start_date.strftime('%Y-%m-%d'),
+                    'period_end': end_date.strftime('%Y-%m-%d'),
+                    'tracking_days': (end_date - start_date).days + 1,
+                    'current_date': end_date.strftime('%Y-%m-%d')
+                },
+                
                 # Enhanced daily spending for Power BI charts
                 'daily_spending_trend': daily_spending,
                 'monthly_spending_summary': monthly_spending,
@@ -1112,6 +1159,15 @@ def powerbi_customer_dashboard(request):
             
             # === POWERBI OPTIMIZED CHARTS DATA ===
             'chart_data': {
+                # Date range information for dashboard display
+                'date_range_info': {
+                    'current_range': current_date_range,
+                    'start_date': start_date.strftime('%Y-%m-%d'),
+                    'end_date': end_date.strftime('%Y-%m-%d'),
+                    'total_days': (end_date - start_date).days + 1,
+                    'range_type': '30_day_trend'
+                },
+                
                 # Spending trend chart (PowerBI compatible) 
                 'spending_trend_30d': [
                     {
@@ -1180,7 +1236,7 @@ def powerbi_customer_dashboard(request):
                         'status': getattr(order, 'status', 'unknown'),
                         'created_at': order.created_at.isoformat() if hasattr(order, 'created_at') else None,
                         'item_count': getattr(order, 'items', []).count() if hasattr(order, 'items') else 1,
-                        'days_ago': (timezone.now().date() - order.created_at.date()).days if hasattr(order, 'created_at') else 0
+                        'days_ago': (timezone.localtime().date() - order.created_at.date()).days if hasattr(order, 'created_at') else 0
                     }
                     for order in recent_orders
                 ],
@@ -1189,7 +1245,7 @@ def powerbi_customer_dashboard(request):
                 'activity_summary': {
                     'last_order_date': recent_orders[0].created_at.date().isoformat() if recent_orders else None,
                     'orders_last_30_days': customer_orders.filter(
-                        created_at__gte=timezone.now() - timedelta(days=30)
+                        created_at__gte=timezone.localtime() - timedelta(days=30)
                     ).count(),
                     'spending_last_30_days': sum(
                         float(d['total_spent']) for d in daily_spending
@@ -1202,8 +1258,19 @@ def powerbi_customer_dashboard(request):
             # === PAST PURCHASE INSIGHTS ===
             'past_purchase': past_purchase_summary,
             
+            # === DEBUG INFO ===
+            'debug_info': {
+                'current_utc': timezone.now().isoformat(),
+                'current_local': timezone.localtime().isoformat(),
+                'timezone_name': str(timezone.get_current_timezone()),
+                'data_generated_at': timezone.localtime().strftime('%Y-%m-%d %H:%M:%S %Z'),
+                'date_range_tracking': current_date_range,
+                'range_start': start_date.strftime('%Y-%m-%d'),
+                'range_end': end_date.strftime('%Y-%m-%d')
+            },
+            
             # === METADATA ===
-            'report_generated': timezone.now().isoformat(),
+            'report_generated': timezone.localtime().isoformat(),
             'dashboard_version': '1.0',
             'personalization': True
         }
@@ -1218,5 +1285,5 @@ def powerbi_customer_dashboard(request):
         logger.error(f'Customer dashboard generation failed for user {getattr(request.user, "id", "unknown")}: {e}')
         return Response({
             'error': 'Customer dashboard generation failed. Please try again later.',
-            'report_generated': timezone.now().isoformat(),
+            'report_generated': timezone.localtime().isoformat(),
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
