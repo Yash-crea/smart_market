@@ -163,10 +163,6 @@
         {% else %}
             <a href="{% url 'smart_market:my_orders' %}" class="btn btn-secondary">Back to My Orders</a>
         {% endif %}
-        
-        {% if order.status == 'pending' %}
-            <button class="btn btn-danger" onclick="confirmCancel()">Cancel Order</button>
-        {% endif %}
     </div>
 </div>
 
@@ -383,26 +379,6 @@
 </style>
 
 <script>
-function confirmCancel() {
-    if (confirm('Are you sure you want to cancel this order?')) {
-        fetch(`/owner/orders/{{ order.order_number }}/status/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
-            },
-            body: JSON.stringify({ status: 'cancelled' })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error: ' + (data.error || 'Cannot cancel this order'));
-            }
-        })
-        .catch(err => alert('Network error: ' + err));
-    }
-}
+// Cancel order functionality removed - payments already processed
 </script>
 {% endblock %}

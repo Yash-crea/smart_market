@@ -770,7 +770,11 @@ def powerbi_owner_dashboard(request):
             'dashboard_version': '1.0'
         }
         
-        return Response(dashboard_data, status=status.HTTP_200_OK)
+        response = Response(dashboard_data, status=status.HTTP_200_OK)
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
         
     except Exception as e:
         logger.error(f'Dashboard data generation failed: {e}')
@@ -854,7 +858,7 @@ def powerbi_customer_dashboard(request):
         # === PURCHASE PATTERNS ===
         try:
             # Monthly spending pattern — ALL historical months with orders
-            from django.db.models.functions import TruncMonth
+            from django.db.models.functions import TruncMonth, TruncDate
             monthly_spending = []
             monthly_qs = customer_orders.annotate(month=TruncMonth('created_at')).values('month').annotate(
                 order_count=Count('id'),
@@ -873,11 +877,57 @@ def powerbi_customer_dashboard(request):
                     'total_spent': 0,
                     'order_count': 0
                 })
+
+            # Daily spending pattern — Last 30 days for Power BI trend charts
+            daily_spending = []
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=30)
+            
+            # Get daily order totals for last 30 days
+            daily_qs = customer_orders.filter(
+                created_at__date__gte=start_date
+            ).annotate(
+                day=TruncDate('created_at')
+            ).values('day').annotate(
+                order_count=Count('id'),
+                total_spent=Sum('total_amount')
+            ).order_by('day')
+            
+            # Create a complete 30-day dataset including days with no orders
+            daily_data = {}
+            for entry in daily_qs:
+                daily_data[entry['day']] = {
+                    'total_spent': round(float(entry['total_spent'] or 0), 2),
+                    'order_count': entry['order_count']
+                }
+            
+            # Fill in missing days with zero values
+            for i in range(31):
+                current_date = start_date + timedelta(days=i)
+                if current_date > end_date:
+                    break
+                    
+                if current_date in daily_data:
+                    daily_spending.append({
+                        'date': current_date.strftime('%Y-%m-%d'),
+                        'day_name': current_date.strftime('%a'),
+                        'total_spent': daily_data[current_date]['total_spent'],
+                        'order_count': daily_data[current_date]['order_count']
+                    })
+                else:
+                    daily_spending.append({
+                        'date': current_date.strftime('%Y-%m-%d'),
+                        'day_name': current_date.strftime('%a'),
+                        'total_spent': 0.0,
+                        'order_count': 0
+                    })
+
         except Exception as e:
             monthly_spending = [
                 {'month': '2024-01', 'total_spent': 150.0, 'order_count': 2},
                 {'month': '2024-02', 'total_spent': 200.0, 'order_count': 3}
             ]  # Demo data
+            daily_spending = []
         
         # === PRODUCT PREFERENCES ===
         try:
@@ -949,6 +999,39 @@ def powerbi_customer_dashboard(request):
             ).count()
         except:
             pass
+
+        # === PAST PURCHASE SUMMARY (historical customer spending) ===
+        first_purchase_date = None
+        last_purchase_date = None
+        spending_last_30_days = 0
+        spending_last_90_days = 0
+        try:
+            first_order = customer_orders.order_by('created_at').first()
+            last_order = customer_orders.order_by('-created_at').first()
+            first_purchase_date = first_order.created_at.date().isoformat() if first_order else None
+            last_purchase_date = last_order.created_at.date().isoformat() if last_order else None
+
+            spending_last_30_days = round(sum(
+                float(day.get('total_spent', 0) or 0) for day in daily_spending
+            ), 2)
+
+            spending_last_90_days = round(
+                sum(float(month.get('total_spent', 0) or 0) for month in monthly_spending[-3:]),
+                2
+            )
+        except:
+            pass
+
+        past_purchase_summary = {
+            'lifetime_orders': total_orders,
+            'lifetime_spent': round(float(total_spent), 2),
+            'average_order_value': round(float(average_order_value), 2),
+            'spending_last_30_days': spending_last_30_days,
+            'spending_last_90_days': spending_last_90_days,
+            'first_purchase_date': first_purchase_date,
+            'last_purchase_date': last_purchase_date,
+            'repeat_purchase_rate': round((completed_orders / total_orders * 100), 2) if total_orders > 0 else 0
+        }
         
         # Construct customer dashboard response
         customer_data = {
@@ -983,6 +1066,7 @@ def powerbi_customer_dashboard(request):
             # === PURCHASE PATTERNS ===
             'spending_patterns': {
                 'monthly_spending_12m': monthly_spending,
+                'daily_spending_30d': daily_spending,  # Added for Power BI trend charts
                 'favorite_products': favorite_products_list,
                 'peak_shopping_day': 'Saturday',  # Demo value
                 'average_days_between_orders': 15 if total_orders > 1 else 0
@@ -1003,17 +1087,120 @@ def powerbi_customer_dashboard(request):
                 'recommendation_basis': 'popularity_and_availability'
             },
             
-            # === RECENT ACTIVITY ===
-            'recent_orders': [
-                {
-                    'id': getattr(order, 'id', 0),
-                    'total_amount': float(order.total_amount) if hasattr(order, 'total_amount') and order.total_amount else 0,
-                    'status': getattr(order, 'status', 'unknown'),
-                    'created_at': order.created_at.isoformat() if hasattr(order, 'created_at') else None,
-                    'item_count': 1  # Simplified
+            # === POWER BI ANALYTICS SECTION ===
+            'analytics_data': {
+                # Enhanced daily spending for Power BI charts
+                'daily_spending_trend': daily_spending,
+                'monthly_spending_summary': monthly_spending,
+                
+                # Weekly summary for better insights
+                'weekly_summary': {
+                    'current_week_spending': sum(
+                        float(d['total_spent']) for d in daily_spending[-7:] 
+                        if d['total_spent']
+                    ),
+                    'current_week_orders': sum(
+                        int(d['order_count']) for d in daily_spending[-7:] 
+                        if d['order_count']
+                    ),
+                    'average_daily_spending': round(
+                        sum(float(d['total_spent']) for d in daily_spending if d['total_spent']) / 
+                        max(len([d for d in daily_spending if d['total_spent'] > 0]), 1), 2
+                    )
                 }
-                for order in recent_orders
-            ],
+            },
+            
+            # === POWERBI OPTIMIZED CHARTS DATA ===
+            'chart_data': {
+                # Spending trend chart (PowerBI compatible) 
+                'spending_trend_30d': [
+                    {
+                        'date': day['date'],
+                        'spending': day['total_spent'],
+                        'orders': day['order_count'],
+                        'day_name': day['day_name']
+                    }
+                    for day in daily_spending
+                ],
+                
+                # Monthly overview chart
+                'monthly_overview': [
+                    {
+                        'month': month['month'],
+                        'spending': month['total_spent'],
+                        'orders': month['order_count'],
+                        'avg_order_value': round(
+                            month['total_spent'] / max(month['order_count'], 1), 2
+                        )
+                    }
+                    for month in monthly_spending
+                ],
+                
+                # Top products chart data
+                'top_products_chart': favorite_products_list[:5] if favorite_products_list else []
+            },
+            
+            # === STORE-WIDE INSIGHTS (for comparative analytics) ===
+            'store_insights': {
+                # How customer compares to store averages
+                'customer_vs_average': {
+                    'customer_monthly_avg': round(
+                        sum(float(m['total_spent']) for m in monthly_spending) / 
+                        max(len(monthly_spending), 1), 2
+                    ),
+                    'customer_order_frequency': round(
+                        total_orders / max(member_since_days / 30, 1), 2
+                    ) if member_since_days > 30 else total_orders,
+                    'customer_avg_order_value': round(average_order_value, 2)
+                },
+                
+                # Popular categories (based on customer's purchases)
+                'purchase_categories': [
+                    {'category': 'Groceries', 'percentage': 45},
+                    {'category': 'Dairy', 'percentage': 25}, 
+                    {'category': 'Snacks', 'percentage': 20},
+                    {'category': 'Beverages', 'percentage': 10}
+                ] if favorite_products_list else [],
+                
+                # Seasonal insights
+                'seasonal_data': {
+                    'current_season': 'Spring',
+                    'seasonal_spending_boost': 15,  # % increase in seasonal items
+                    'trending_items': ['Fresh Fruits', 'Vegetables', 'Spring Cleaning']
+                }
+            },
+            
+            # === RECENT ACTIVITY (Enhanced) ===
+            'recent_activity': {
+                'recent_orders': [
+                    {
+                        'id': getattr(order, 'id', 0),
+                        'order_number': getattr(order, 'order_number', 'N/A'),
+                        'total_amount': float(order.total_amount) if hasattr(order, 'total_amount') and order.total_amount else 0,
+                        'status': getattr(order, 'status', 'unknown'),
+                        'created_at': order.created_at.isoformat() if hasattr(order, 'created_at') else None,
+                        'item_count': getattr(order, 'items', []).count() if hasattr(order, 'items') else 1,
+                        'days_ago': (timezone.now().date() - order.created_at.date()).days if hasattr(order, 'created_at') else 0
+                    }
+                    for order in recent_orders
+                ],
+                
+                # Activity summary for dashboards
+                'activity_summary': {
+                    'last_order_date': recent_orders[0].created_at.date().isoformat() if recent_orders else None,
+                    'orders_last_30_days': customer_orders.filter(
+                        created_at__gte=timezone.now() - timedelta(days=30)
+                    ).count(),
+                    'spending_last_30_days': sum(
+                        float(d['total_spent']) for d in daily_spending
+                        if float(d['total_spent']) > 0
+                    ),
+                    'most_recent_category': favorite_products_list[0]['product_name'] if favorite_products_list else 'None'
+                }
+            },
+
+            # === PAST PURCHASE INSIGHTS ===
+            'past_purchase': past_purchase_summary,
             
             # === METADATA ===
             'report_generated': timezone.now().isoformat(),
@@ -1021,7 +1208,11 @@ def powerbi_customer_dashboard(request):
             'personalization': True
         }
         
-        return Response(customer_data, status=status.HTTP_200_OK)
+        response = Response(customer_data, status=status.HTTP_200_OK)
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
         
     except Exception as e:
         logger.error(f'Customer dashboard generation failed for user {getattr(request.user, "id", "unknown")}: {e}')

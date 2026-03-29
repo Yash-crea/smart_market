@@ -557,8 +557,14 @@ def owner_dashboard(request):
             .order_by('-total_qty')[:5]
         )
 
-        # Recent orders
-        recent_orders = Order.objects.order_by('-created_at')[:5]
+        # Recent orders - show more for scrolling
+        recent_orders = Order.objects.order_by('-created_at')[:20]
+        
+        # All orders for scrollable view
+        all_orders = Order.objects.order_by('-created_at')[:50]  # Limit to 50 for performance
+        
+        # Pending orders for the slide filter
+        pending_orders_list = Order.objects.filter(status='pending').order_by('-created_at')[:10]
 
         # Notifications
         notifications = Notification.objects.filter(recipient_user=request.user).order_by('-created_at')[:10]
@@ -613,6 +619,8 @@ def owner_dashboard(request):
             # Top & recent
             'top_products': top_products,
             'recent_orders': recent_orders,
+            'all_orders': all_orders,
+            'pending_orders_list': pending_orders_list,
             # Notifications
             'notifications': notifications,
             'unread_notifications_count': unread_notifications_count,
@@ -1531,9 +1539,83 @@ def _text(val):
         return 'N/A'
     return str(val)
 
+def _calculate_real_time_sales_data(product_name):
+    """Calculate real-time sales data for a product."""
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    
+    now = timezone.now()
+    thirty_days_ago = now - timedelta(days=30)
+    seven_days_ago = now - timedelta(days=7)
+    
+    # Calculate weekly sales (last 7 days)
+    weekly_sales = OrderItem.objects.filter(
+        product_name=product_name,
+        order__created_at__gte=seven_days_ago,
+        order__status__in=['pending', 'processing', 'shipped', 'delivered']
+    ).aggregate(
+        total_qty=models.Sum('quantity'),
+        total_revenue=models.Sum('subtotal')
+    )
+    
+    # Calculate monthly sales (last 30 days)
+    monthly_sales = OrderItem.objects.filter(
+        product_name=product_name,
+        order__created_at__gte=thirty_days_ago,
+        order__status__in=['pending', 'processing', 'shipped', 'delivered']
+    ).aggregate(
+        total_qty=models.Sum('quantity'),
+        total_revenue=models.Sum('subtotal')
+    )
+    
+    # Calculate averages
+    avg_weekly_qty = weekly_sales['total_qty'] or 0
+    avg_weekly_revenue = float(weekly_sales['total_revenue'] or 0)
+    
+    # Calculate monthly averages (4-week period)
+    avg_monthly_qty = monthly_sales['total_qty'] or 0
+    avg_monthly_revenue = float(monthly_sales['total_revenue'] or 0)
+    
+    return {
+        'avg_weekly_qty': avg_weekly_qty,
+        'avg_weekly_revenue': avg_weekly_revenue,
+        'avg_monthly_qty': avg_monthly_qty,
+        'avg_monthly_revenue': avg_monthly_revenue,
+        'last_calculated': now.strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+def _get_stock_status_info(product):
+    """Get comprehensive stock status information."""
+    stock_qty = product.stock_quantity or 0
+    reorder_point = product.reorder_point or 0
+    min_stock = product.min_stock_level or 0
+    max_stock = product.max_stock_level or 0
+    
+    status = 'Normal'
+    if stock_qty <= 0:
+        status = 'Out of Stock'
+    elif stock_qty <= min_stock:
+        status = 'Critical Low'
+    elif stock_qty <= reorder_point:
+        status = 'Needs Reorder'
+    elif stock_qty > max_stock * 0.9:
+        status = 'Overstocked'
+    
+    days_of_stock = 0
+    if hasattr(product, 'avg_weekly_sales') and product.avg_weekly_sales:
+        daily_sales = float(product.avg_weekly_sales) / 7
+        if daily_sales > 0:
+            days_of_stock = round(stock_qty / daily_sales, 1)
+    
+    return {
+        'status': status,
+        'days_of_stock': days_of_stock,
+        'stock_coverage': 'N/A' if days_of_stock == 0 else f"{days_of_stock} days"
+    }
+
 @login_required
 def export_dashboard_excel(request):
-    """Export ALL business records to Excel — owner only."""
+    """Export ALL business records to Excel with real-time data — owner only."""
     if not (request.user.is_superuser or request.user.groups.filter(name='Owner').exists()):
         messages.error(request, "Only the business owner can export records.")
         return redirect('smart_market:home')
@@ -1558,6 +1640,32 @@ def export_dashboard_excel(request):
     total_customers = User.objects.filter(groups__name='Customer').count()
     headers = ['Metric', 'Value']
     ws.append(headers)
+    # Calculate real-time inventory alerts
+    products_low_stock = Product.objects.filter(
+        stock_quantity__isnull=False, 
+        stock_quantity__lte=models.F('reorder_point')
+    ).count()
+    smart_products_low_stock = SmartProducts.objects.filter(
+        stock_quantity__isnull=False, 
+        stock_quantity__lte=models.F('reorder_point')
+    ).count()
+    
+    products_out_of_stock = Product.objects.filter(
+        stock_quantity__isnull=False,
+        stock_quantity__lte=0
+    ).count()
+    smart_products_out_of_stock = SmartProducts.objects.filter(
+        stock_quantity__isnull=False,
+        stock_quantity__lte=0
+    ).count()
+    
+    # Calculate forecast data freshness
+    outdated_forecasts = Product.objects.filter(
+        last_forecast_update__isnull=True
+    ).count() + SmartProducts.objects.filter(
+        last_forecast_update__isnull=True
+    ).count()
+    
     summary_rows = [
         ('Total Revenue (Rs)', str(_safe(total_revenue))),
         ('Total Orders', str(total_orders)),
@@ -1571,8 +1679,13 @@ def export_dashboard_excel(request):
         ('Delivered Orders', str(orders.filter(status='delivered').count())),
         ('Cancelled Orders', str(orders.filter(status='cancelled').count())),
         ('Open Support Tickets', str(CustomerSupport.objects.filter(status='open').count())),
-        ('Low Stock Products', str(Product.objects.filter(stock_quantity__lte=models.F('reorder_point')).count())),
+        ('Products Need Reorder', str(products_low_stock)),
+        ('Smart Products Need Reorder', str(smart_products_low_stock)),
+        ('Products Out of Stock', str(products_out_of_stock)),
+        ('Smart Products Out of Stock', str(smart_products_out_of_stock)),
+        ('Products with Outdated Forecasts', str(outdated_forecasts)),
         ('Export Date', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+        ('Data Calculated in Real-Time', 'Yes'),
     ]
     for row in summary_rows:
         ws.append(list(row))
@@ -1580,44 +1693,87 @@ def export_dashboard_excel(request):
     _auto_width(ws)
     _make_table(ws, 'DashboardSummary')
 
-    # ── 2. Products ───────────────────────────────────────
+    # ── 2. Products (with Real-Time Data) ──────────────────────────────────────
     ws2 = wb.create_sheet('Products')
-    prod_headers = ['ID', 'Name', 'Category', 'Price', 'Stock Qty', 'In Stock',
-                    'Promotional', 'Peak Season', 'Festival', 'Demand Trend',
-                    'Avg Weekly Sales', 'Avg Monthly Sales', 'Predicted Demand 7d',
-                    'Predicted Demand 30d', 'Forecast Accuracy', 'Reorder Point',
-                    'Min Stock', 'Max Stock', 'Created']
+    prod_headers = ['ID', 'Name', 'Category', 'Price', 'Stock Qty', 'Stock Status', 'Stock Coverage',
+                    'In Stock', 'Promotional', 'Peak Season', 'Festival', 'Demand Trend',
+                    'Current Weekly Sales', 'Current Monthly Sales', 'DB Weekly Sales', 'DB Monthly Sales',
+                    'Predicted Demand 7d', 'Predicted Demand 30d', 'Forecast Accuracy', 'Last Forecast Update',
+                    'Reorder Point', 'Min Stock', 'Max Stock', 'Seasonal Multiplier', 'Data Updated', 'Created']
     ws2.append(prod_headers)
+    
+    # Process products with real-time calculations
+    products_with_data = []
     for p in Product.objects.select_related('category').all():
-        ws2.append([
+        # Get real-time sales data
+        sales_data = _calculate_real_time_sales_data(p.name)
+        stock_info = _get_stock_status_info(p)
+        
+        # Format last forecast update
+        last_forecast = 'Never' if not p.last_forecast_update else p.last_forecast_update.strftime('%Y-%m-%d %H:%M')
+        
+        row_data = [
             p.id, p.name, _text(p.category.name if p.category else None),
-            _safe(p.price) or 0, p.stock_quantity or 0, 'Yes' if p.in_stock else 'No',
-            'Yes' if p.is_promotional else 'No', _text(p.peak_season), _text(p.festival_association),
-            _text(p.demand_trend), _safe(p.avg_weekly_sales) or 0, _safe(p.avg_monthly_sales) or 0,
+            _safe(p.price) or 0, p.stock_quantity or 0, stock_info['status'], stock_info['stock_coverage'],
+            'Yes' if p.in_stock else 'No', 'Yes' if p.is_promotional else 'No', 
+            _text(p.peak_season), _text(p.festival_association), _text(p.demand_trend),
+            sales_data['avg_weekly_qty'], sales_data['avg_monthly_qty'],
+            _safe(p.avg_weekly_sales) or 0, _safe(p.avg_monthly_sales) or 0,
             p.predicted_demand_7d or 0, p.predicted_demand_30d or 0, _safe(p.forecast_accuracy) or 0,
-            p.reorder_point or 0, p.min_stock_level or 0, p.max_stock_level or 0,
-            _safe(p.created_at) or 'N/A',
-        ])
+            last_forecast, p.reorder_point or 0, p.min_stock_level or 0, p.max_stock_level or 0,
+            p.get_current_season_multiplier(), sales_data['last_calculated'],
+            _safe(p.created_at) or 'N/A'
+        ]
+        products_with_data.append(row_data)
+    
+    # Sort by stock status priority (Critical first)
+    status_priority = {'Out of Stock': 1, 'Critical Low': 2, 'Needs Reorder': 3, 'Normal': 4, 'Overstocked': 5}
+    products_with_data.sort(key=lambda x: status_priority.get(x[5], 6))
+    
+    for row_data in products_with_data:
+        ws2.append(row_data)
     _style_header_row(ws2, len(prod_headers))
     _auto_width(ws2)
     _make_table(ws2, 'Products')
 
-    # ── 3. Smart Products ─────────────────────────────────
+    # ── 3. Smart Products (with Real-Time Data) ────────────────────────
     ws3 = wb.create_sheet('Smart Products')
-    sp_headers = ['ID', 'Name', 'Category', 'Price', 'Stock Qty', 'Promotional',
-                  'Peak Season', 'Festival', 'Demand Trend', 'Avg Weekly Sales',
-                  'Avg Monthly Sales', 'Predicted Demand 7d', 'Predicted Demand 30d',
-                  'Forecast Accuracy', 'Reorder Point', 'Min Stock', 'Max Stock', 'Created']
+    sp_headers = ['ID', 'Name', 'Category', 'Price', 'Stock Qty', 'Stock Status', 'Stock Coverage',
+                  'Promotional', 'Peak Season', 'Festival', 'Demand Trend',
+                  'Current Weekly Sales', 'Current Monthly Sales', 'DB Weekly Sales', 'DB Monthly Sales',
+                  'Predicted Demand 7d', 'Predicted Demand 30d', 'Forecast Accuracy', 'Last Forecast Update',
+                  'Reorder Point', 'Min Stock', 'Max Stock', 'Seasonal Multiplier', 'Data Updated', 'Created']
     ws3.append(sp_headers)
+    
+    # Process smart products with real-time calculations
+    smart_products_with_data = []
     for p in SmartProducts.objects.all():
-        ws3.append([
-            p.id, p.name, _text(p.category), _safe(p.price) or 0, p.stock_quantity or 0,
+        # Get real-time sales data
+        sales_data = _calculate_real_time_sales_data(p.name)
+        stock_info = _get_stock_status_info(p)
+        
+        # Format last forecast update
+        last_forecast = 'Never' if not p.last_forecast_update else p.last_forecast_update.strftime('%Y-%m-%d %H:%M')
+        
+        row_data = [
+            p.id, p.name, _text(p.category), _safe(p.price) or 0, 
+            p.stock_quantity or 0, stock_info['status'], stock_info['stock_coverage'],
             'Yes' if p.is_promotional else 'No', _text(p.peak_season), _text(p.festival_association),
-            _text(p.demand_trend), _safe(p.avg_weekly_sales) or 0, _safe(p.avg_monthly_sales) or 0,
+            _text(p.demand_trend), sales_data['avg_weekly_qty'], sales_data['avg_monthly_qty'],
+            _safe(p.avg_weekly_sales) or 0, _safe(p.avg_monthly_sales) or 0,
             p.predicted_demand_7d or 0, p.predicted_demand_30d or 0, _safe(p.forecast_accuracy) or 0,
-            p.reorder_point or 0, p.min_stock_level or 0, p.max_stock_level or 0,
-            _safe(p.created_at) or 'N/A',
-        ])
+            last_forecast, p.reorder_point or 0, p.min_stock_level or 0, p.max_stock_level or 0,
+            p.get_current_season_multiplier(), sales_data['last_calculated'],
+            _safe(p.created_at) or 'N/A'
+        ]
+        smart_products_with_data.append(row_data)
+    
+    # Sort by stock status priority (Critical first)
+    status_priority = {'Out of Stock': 1, 'Critical Low': 2, 'Needs Reorder': 3, 'Normal': 4, 'Overstocked': 5}
+    smart_products_with_data.sort(key=lambda x: status_priority.get(x[5], 6))
+    
+    for row_data in smart_products_with_data:
+        ws3.append(row_data)
     _style_header_row(ws3, len(sp_headers))
     _auto_width(ws3)
     _make_table(ws3, 'SmartProducts')
@@ -1910,11 +2066,12 @@ def export_dashboard_excel(request):
     _auto_width(ws_cat)
     _make_table(ws_cat, 'PBI_RevenueByCategory')
 
-    # ── PBI-3. Top Products Performance ───────────────────
+    # ── PBI-3. Top Products Performance (Enhanced with Real-Time Data) ───────────────
     ws_top = wb.create_sheet('PBI Top Products')
-    top_headers = ['Product Name', 'Category', 'Revenue', 'Units Sold',
-                   'Order Count', 'Unit Price', 'Stock Qty', 'Demand Trend',
-                   'Predicted Demand 7d', 'Predicted Demand 30d']
+    top_headers = ['Product Name', 'Category', 'All-Time Revenue', 'All-Time Units',
+                   'Order Count', 'Avg Unit Price', 'Recent Weekly Sales', 'Recent Monthly Sales',
+                   'Stock Qty', 'Stock Status', 'Demand Trend', 'Predicted Demand 7d', 'Predicted Demand 30d',
+                   'Forecast Accuracy %', 'Performance Score']
     ws_top.append(top_headers)
 
     top_items = (
@@ -1928,73 +2085,146 @@ def export_dashboard_excel(request):
         )
         .order_by('-revenue')
     )
+    
+    enhanced_products = []
     for ti in top_items:
-        # Try to find matching smart product for extra fields
+        # Get real-time sales data
+        sales_data = _calculate_real_time_sales_data(ti['product_name'])
+        
+        # Try to find matching product for extra fields
         sp = SmartProducts.objects.filter(name=ti['product_name']).first()
         rp = Product.objects.select_related('category').filter(name=ti['product_name']).first()
+        
         cat = 'N/A'
         stock = 0
+        stock_status = 'Unknown'
         trend = 'N/A'
         pred7 = 0
         pred30 = 0
+        forecast_acc = 0
+        
         if sp:
             cat = _text(sp.category)
             stock = sp.stock_quantity or 0
+            stock_info = _get_stock_status_info(sp)
+            stock_status = stock_info['status']
             trend = _text(sp.demand_trend)
             pred7 = sp.predicted_demand_7d or 0
             pred30 = sp.predicted_demand_30d or 0
+            forecast_acc = _safe(sp.forecast_accuracy) or 0
         elif rp:
             cat = _text(rp.category.name if rp.category else None)
             stock = rp.stock_quantity or 0
+            stock_info = _get_stock_status_info(rp)
+            stock_status = stock_info['status']
             trend = _text(rp.demand_trend)
             pred7 = rp.predicted_demand_7d or 0
             pred30 = rp.predicted_demand_30d or 0
-        ws_top.append([
+            forecast_acc = _safe(rp.forecast_accuracy) or 0
+        
+        # Calculate performance score (revenue + recent activity)
+        revenue_score = float(ti['revenue'] or 0) / 1000  # Scale down revenue
+        recent_activity_score = (sales_data['avg_weekly_qty'] * 10) + (sales_data['avg_monthly_qty'] * 2)
+        performance_score = round(revenue_score + recent_activity_score, 2)
+        
+        enhanced_products.append([
             _text(ti['product_name']), cat, float(ti['revenue'] or 0),
-            ti['units'] or 0, ti['orders'] or 0,
-            round(float(ti['avg_price'] or 0), 2),
-            stock, trend, pred7, pred30,
+            ti['units'] or 0, ti['orders'] or 0, round(float(ti['avg_price'] or 0), 2),
+            sales_data['avg_weekly_qty'], sales_data['avg_monthly_qty'],
+            stock, stock_status, trend, pred7, pred30, forecast_acc, performance_score
         ])
+    
+    # Sort by performance score (highest first)
+    enhanced_products.sort(key=lambda x: x[-1], reverse=True)
+    
+    for product_data in enhanced_products:
+        ws_top.append(product_data)
     _style_pbi_header(ws_top, len(top_headers))
     _auto_width(ws_top)
     _make_table(ws_top, 'PBI_TopProducts')
 
-    # ── PBI-4. Inventory Alerts ───────────────────────────
+    # ── PBI-4. Inventory Alerts (Enhanced with Real-Time Calculations) ───────────────────────
     ws_inv = wb.create_sheet('PBI Inventory Alerts')
     inv_headers = ['Product Name', 'Product Type', 'Category', 'Current Stock',
-                   'Reorder Point', 'Min Stock', 'Max Stock',
-                   'Predicted Demand 7d', 'Days Until Stockout',
-                   'Suggested Reorder Qty', 'Priority']
+                   'Stock Status', 'Reorder Point', 'Min Stock', 'Max Stock',
+                   'Recent Weekly Sales', 'Predicted Demand 7d', 'Days Until Stockout',
+                   'Suggested Reorder Qty', 'Priority', 'Last Stock Movement', 'Demand Velocity']
     ws_inv.append(inv_headers)
 
-    # Regular products needing restock
+    inventory_alerts = []
+    
+    # Regular products needing attention
     for p in Product.objects.select_related('category').filter(
-        stock_quantity__isnull=False, stock_quantity__lte=models.F('reorder_point')
-    ):
-        weekly = float(p.avg_weekly_sales) if p.avg_weekly_sales else 0
-        daily = weekly / 7 if weekly > 0 else 0
-        days_out = round(p.stock_quantity / daily, 1) if daily > 0 else 999
-        suggested = max(0, p.max_stock_level - (p.stock_quantity or 0))
-        priority = 'High' if (p.stock_quantity or 0) <= p.min_stock_level else 'Medium'
-        ws_inv.append([
-            _text(p.name), 'Regular', _text(p.category.name if p.category else None),
-            p.stock_quantity or 0, p.reorder_point or 0, p.min_stock_level or 0, p.max_stock_level or 0,
-            p.predicted_demand_7d or 0, days_out, suggested, priority,
-        ])
-    # Smart products needing restock
+        stock_quantity__isnull=False
+    ).order_by('stock_quantity'):
+        sales_data = _calculate_real_time_sales_data(p.name)
+        stock_info = _get_stock_status_info(p)
+        
+        # Calculate demand velocity (units per day based on recent sales)
+        demand_velocity = round(sales_data['avg_weekly_qty'] / 7, 2) if sales_data['avg_weekly_qty'] > 0 else 0
+        
+        # Calculate suggested reorder quantity
+        current_stock = p.stock_quantity or 0
+        max_stock = p.max_stock_level or 0
+        suggested_reorder = max(0, max_stock - current_stock) if max_stock > 0 else p.reorder_point * 2
+        
+        # Get last stock movement
+        last_movement = Inventory.objects.filter(
+            product=p
+        ).order_by('-change_date').first()
+        last_movement_date = last_movement.change_date.strftime('%Y-%m-%d') if last_movement else 'Never'
+        
+        # Only include products that need attention
+        if (current_stock <= p.reorder_point or 
+            current_stock <= p.min_stock_level or 
+            stock_info['status'] in ['Out of Stock', 'Critical Low', 'Needs Reorder']):
+            
+            inventory_alerts.append([
+                _text(p.name), 'Regular', _text(p.category.name if p.category else None),
+                current_stock, stock_info['status'], p.reorder_point or 0, 
+                p.min_stock_level or 0, p.max_stock_level or 0,
+                sales_data['avg_weekly_qty'], p.predicted_demand_7d or 0, 
+                stock_info['days_of_stock'], suggested_reorder,
+                'Critical' if current_stock <= p.min_stock_level else 'High' if current_stock <= p.reorder_point else 'Medium',
+                last_movement_date, demand_velocity
+            ])
+    
+    # Smart products needing attention  
     for p in SmartProducts.objects.filter(
-        stock_quantity__isnull=False, stock_quantity__lte=models.F('reorder_point')
-    ):
-        weekly = float(p.avg_weekly_sales) if p.avg_weekly_sales else 0
-        daily = weekly / 7 if weekly > 0 else 0
-        days_out = round(p.stock_quantity / daily, 1) if daily > 0 else 999
-        suggested = max(0, p.max_stock_level - (p.stock_quantity or 0))
-        priority = 'High' if (p.stock_quantity or 0) <= p.min_stock_level else 'Medium'
-        ws_inv.append([
-            _text(p.name), 'Smart', _text(p.category),
-            p.stock_quantity or 0, p.reorder_point or 0, p.min_stock_level or 0, p.max_stock_level or 0,
-            p.predicted_demand_7d or 0, days_out, suggested, priority,
-        ])
+        stock_quantity__isnull=False
+    ).order_by('stock_quantity'):
+        sales_data = _calculate_real_time_sales_data(p.name)
+        stock_info = _get_stock_status_info(p)
+        
+        demand_velocity = round(sales_data['avg_weekly_qty'] / 7, 2) if sales_data['avg_weekly_qty'] > 0 else 0
+        
+        current_stock = p.stock_quantity or 0
+        max_stock = p.max_stock_level or 0
+        suggested_reorder = max(0, max_stock - current_stock) if max_stock > 0 else p.reorder_point * 2
+        
+        # Get last stock movement (Note: Inventory model may not link to SmartProducts directly)
+        last_movement_date = 'N/A'  # Since SmartProducts may not have Inventory tracking
+        
+        if (current_stock <= p.reorder_point or 
+            current_stock <= p.min_stock_level or 
+            stock_info['status'] in ['Out of Stock', 'Critical Low', 'Needs Reorder']):
+            
+            inventory_alerts.append([
+                _text(p.name), 'Smart', _text(p.category),
+                current_stock, stock_info['status'], p.reorder_point or 0, 
+                p.min_stock_level or 0, p.max_stock_level or 0,
+                sales_data['avg_weekly_qty'], p.predicted_demand_7d or 0, 
+                stock_info['days_of_stock'], suggested_reorder,
+                'Critical' if current_stock <= p.min_stock_level else 'High' if current_stock <= p.reorder_point else 'Medium',
+                last_movement_date, demand_velocity
+            ])
+    
+    # Sort by priority and stock level
+    priority_order = {'Critical': 1, 'High': 2, 'Medium': 3}
+    inventory_alerts.sort(key=lambda x: (priority_order.get(x[12], 4), x[3]))
+    
+    for alert_data in inventory_alerts:
+        ws_inv.append(alert_data)
     _style_pbi_header(ws_inv, len(inv_headers))
     _auto_width(ws_inv)
     _make_table(ws_inv, 'PBI_InventoryAlerts')
@@ -2144,9 +2374,73 @@ def export_dashboard_excel(request):
     ]
     for row in kpi_rows:
         ws_kpi.append(list(row))
-    _style_pbi_header(ws_kpi, 2)
+    _style_pbi_header(ws_kpi, 4)
     _auto_width(ws_kpi)
     _make_table(ws_kpi, 'PBI_KPIs')
+    
+    # ── NEW: Data Quality & Validation Sheet ───────────────────────────
+    ws_quality = wb.create_sheet('Data Quality Report')
+    quality_headers = ['Check Type', 'Item', 'Status', 'Count', 'Recommendation']
+    ws_quality.append(quality_headers)
+    
+    quality_checks = [
+        ('Stock Integrity', 'Products with Null Stock', 
+         '⚠️ Issue' if Product.objects.filter(stock_quantity__isnull=True).exists() else '✅ Good',
+         Product.objects.filter(stock_quantity__isnull=True).count(),
+         'Update stock quantities for all products'),
+        
+        ('Stock Integrity', 'Smart Products with Null Stock',
+         '⚠️ Issue' if SmartProducts.objects.filter(stock_quantity__isnull=True).exists() else '✅ Good', 
+         SmartProducts.objects.filter(stock_quantity__isnull=True).count(),
+         'Update stock quantities for all smart products'),
+         
+        ('ML Data Health', 'Products Never Forecasted',
+         '⚠️ Issue' if outdated_forecasts > 0 else '✅ Good',
+         outdated_forecasts,
+         'Run ML forecasting for all products'),
+         
+        ('Sales Data', 'Products with Zero Sales History',
+         '📊 Info',
+         Product.objects.filter(avg_weekly_sales__lte=0).count(),
+         'Monitor new products or discontinued items'),
+         
+        ('Pricing', 'Products with Zero Price',
+         '⚠️ Issue' if Product.objects.filter(price__lte=0).exists() else '✅ Good',
+         Product.objects.filter(price__lte=0).count(),
+         'Update pricing for all products'),
+         
+        ('Inventory Alerts', 'Critical Stock Levels',
+         '🚨 Urgent' if products_out_of_stock > 0 else '⚠️ Monitor' if products_low_stock > 0 else '✅ Good',
+         products_out_of_stock + smart_products_out_of_stock,
+         'Immediate restocking required'),
+         
+        ('Order Processing', 'Stuck Pending Orders',
+         '⚠️ Review' if orders.filter(status='pending', created_at__lt=seven_days_ago).exists() else '✅ Good',
+         orders.filter(status='pending', created_at__lt=seven_days_ago).count(),
+         'Review and process old pending orders'),
+         
+        ('Customer Data', 'Orders without Customer Info',
+         '📊 Info',
+         Order.objects.filter(customer_email__isnull=True).count(),
+         'Ensure customer data collection'),
+         
+        ('Revenue Tracking', 'Delivered Orders without Any Payments',
+         '⚠️ Review' if Order.objects.filter(status='delivered').annotate(payment_count=Count('payments')).filter(payment_count=0).exists() else '✅ Good',
+         Order.objects.filter(status='delivered').annotate(payment_count=Count('payments')).filter(payment_count=0).count(),
+         'Link payments to all completed orders'),
+         
+        ('Data Freshness', 'Export Real-Time Status',
+         '✅ Current',
+         1, 
+         'All calculations performed at export time')
+    ]
+    
+    for check in quality_checks:
+        ws_quality.append(list(check))
+    
+    _style_pbi_header(ws_quality, 5)
+    _auto_width(ws_quality)
+    _make_table(ws_quality, 'DataQualityReport')
 
     # ── Build response ────────────────────────────────────
     filename = f"business_records_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"

@@ -28,7 +28,7 @@
         <button onclick="markAllNotificationsRead()" class="btn-mark-all">Mark All as Read</button>
       {% endif %}
     </div>
-    <div class="notifications-list">
+    <div class="notifications-scroll-container">
       {% for notification in notifications %}
         <div class="notification-item {% if not notification.is_read %}unread{% endif %}">
           <div class="notification-icon">
@@ -118,6 +118,7 @@
   {% if top_demand_products %}
   <div class="dashboard-section">
     <h3>Top Predicted Demand (Next 7 Days)</h3>
+    <div class="table-scroll-container">
     <table class="dashboard-table">
       <thead>
         <tr>
@@ -142,6 +143,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
   {% endif %}
 
@@ -149,6 +151,7 @@
   {% if restock_alerts %}
   <div class="dashboard-section alert-section">
     <h3>Restock Alerts (Stock &lt; Predicted Demand)</h3>
+    <div class="table-scroll-container">
     <table class="dashboard-table">
       <thead>
         <tr>
@@ -169,12 +172,14 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
   {% endif %}
 
   <!-- ===== Top Selling Products ===== -->
   <div class="dashboard-section">
     <h3>Top Selling Products</h3>
+    <div class="table-scroll-container">
     <table class="dashboard-table">
       <thead>
         <tr>
@@ -195,11 +200,13 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
 
-  <!-- ===== Recent Orders ===== -->
+  <!-- ===== All Orders (Scrollable) ===== -->
   <div class="dashboard-section">
-    <h3>Recent Orders</h3>
+    <h3>📋 All Orders</h3>
+    <div class="orders-scroll-container">
     <table class="dashboard-table">
       <thead>
         <tr>
@@ -212,7 +219,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for order in recent_orders %}
+        {% for order in all_orders %}
         <tr>
           <td><a href="{% url 'smart_market:order_detail' order.order_number %}">{{ order.order_number }}</a></td>
           <td>{{ order.customer_name }}</td>
@@ -237,17 +244,20 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
 
   <!-- ===== Low Stock Products ===== -->
   {% if low_stock_products %}
   <div class="dashboard-section">
     <h3>Low Stock Items</h3>
-    <ul class="low-stock-list">
-      {% for p in low_stock_products %}
-        <li><strong>{{ p.name|truncatechars:35 }}</strong> &mdash; {{ p.stock_quantity|default_if_none:0 }} left</li>
-      {% endfor %}
-    </ul>
+    <div class="list-scroll-container">
+      <ul class="low-stock-list">
+        {% for p in low_stock_products %}
+          <li><strong>{{ p.name|truncatechars:35 }}</strong> &mdash; {{ p.stock_quantity|default_if_none:0 }} left</li>
+        {% endfor %}
+      </ul>
+    </div>
   </div>
   {% endif %}
 
@@ -284,13 +294,15 @@
       <!-- KPI Live Cards -->
       <div class="pbi-card">
         <h4>Live KPIs</h4>
-        <div class="pbi-kpis">
-          <div class="pbi-kpi"><span id="kpi-revenue">--</span><small>Total Revenue</small></div>
-          <div class="pbi-kpi"><span id="kpi-orders">--</span><small>Total Orders</small></div>
-          <div class="pbi-kpi"><span id="kpi-aov">--</span><small>Avg Order Value</small></div>
-          <div class="pbi-kpi"><span id="kpi-conversion">--</span><small>Conversion Rate</small></div>
-          <div class="pbi-kpi"><span id="kpi-users">--</span><small>Active Users (30d)</small></div>
-          <div class="pbi-kpi"><span id="kpi-stock">--</span><small>Products In Stock</small></div>
+        <div class="kpis-scroll-container">
+          <div class="pbi-kpis">
+            <div class="pbi-kpi"><span id="kpi-revenue">--</span><small>Total Revenue</small></div>
+            <div class="pbi-kpi"><span id="kpi-orders">--</span><small>Total Orders</small></div>
+            <div class="pbi-kpi"><span id="kpi-aov">--</span><small>Avg Order Value</small></div>
+            <div class="pbi-kpi"><span id="kpi-conversion">--</span><small>Conversion Rate</small></div>
+            <div class="pbi-kpi"><span id="kpi-users">--</span><small>Active Users (30d)</small></div>
+            <div class="pbi-kpi"><span id="kpi-stock">--</span><small>Products In Stock</small></div>
+          </div>
         </div>
       </div>
     </div>
@@ -492,6 +504,96 @@
   .dashboard-table th { text-align:left; padding:.6rem; font-size:.85rem; color:#555; border-bottom:2px solid #eee; text-transform:uppercase; }
   .dashboard-table td { padding:.6rem; border-bottom:1px solid #f2f2f2; font-size:.92rem; }
   .dashboard-table tr:hover { background:#f8f9ff; }
+  
+  /* ---- Scrollable Orders Container ---- */
+  .orders-scroll-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  /* ---- Notifications Scroll Container ---- */
+  .notifications-scroll-container {
+    max-height: 350px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+  
+  /* ---- Table Scroll Container ---- */
+  .table-scroll-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  
+  /* ---- List Scroll Container ---- */
+  .list-scroll-container {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: white;
+  }
+  
+  /* ---- KPIs Scroll Container ---- */
+  .kpis-scroll-container {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  
+  /* ---- Custom Scrollbar Styling ---- */
+  .orders-scroll-container::-webkit-scrollbar,
+  .notifications-scroll-container::-webkit-scrollbar,
+  .table-scroll-container::-webkit-scrollbar,
+  .list-scroll-container::-webkit-scrollbar,
+  .kpis-scroll-container::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .orders-scroll-container::-webkit-scrollbar-track,
+  .notifications-scroll-container::-webkit-scrollbar-track,
+  .table-scroll-container::-webkit-scrollbar-track,
+  .list-scroll-container::-webkit-scrollbar-track,
+  .kpis-scroll-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  
+  .orders-scroll-container::-webkit-scrollbar-thumb,
+  .notifications-scroll-container::-webkit-scrollbar-thumb,
+  .table-scroll-container::-webkit-scrollbar-thumb,
+  .list-scroll-container::-webkit-scrollbar-thumb,
+  .kpis-scroll-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+  
+  .orders-scroll-container::-webkit-scrollbar-thumb:hover,
+  .notifications-scroll-container::-webkit-scrollbar-thumb:hover,
+  .table-scroll-container::-webkit-scrollbar-thumb:hover,
+  .list-scroll-container::-webkit-scrollbar-thumb:hover,
+  .kpis-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #888;
+  }
+
+  /* ---- Scrollbar for Firefox ---- */
+  .orders-scroll-container,
+  .notifications-scroll-container,
+  .table-scroll-container,
+  .list-scroll-container,
+  .kpis-scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+  }
+  
   .text-danger { color:#dc3545; font-weight:600; }
   .text-ok { color:#28a745; }
 
@@ -545,7 +647,15 @@
     .dashboard-actions { flex-direction:column; }
     .pbi-grid { grid-template-columns:1fr; }
     .pbi-kpis { grid-template-columns:1fr 1fr; }
+    
+    /* ---- Mobile Scroll Container Adjustments ---- */
+    .orders-scroll-container { max-height: 300px; }
+    .notifications-scroll-container { max-height: 250px; }
+    .table-scroll-container { max-height: 250px; }
+    .list-scroll-container { max-height: 150px; }
+    .kpis-scroll-container { max-height: 200px; }
   }
+
 </style>
 
 <script>
