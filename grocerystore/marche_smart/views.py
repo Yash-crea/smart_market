@@ -7,7 +7,7 @@ from django.db import models
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
-from .models import Product, SmartProducts, Cart, CartItem, Order, OrderItem, Payment, Notification, MLForecastModel
+from .models import Product, SmartProducts, Cart, CartItem, Order, OrderItem, Payment, Notification, MLForecastModel, UserProfile
 from django.db.models import Sum, Avg, Max, Count, Q, F
 from decimal import Decimal
 import uuid
@@ -2799,16 +2799,30 @@ def checkout(request):
         # Process payment form
         return process_payment(request, cart, total)
     
+    # Load user profile data first, then fall back to session data
+    try:
+        user_profile = request.user.profile
+        profile_data = {
+            'customer_phone': user_profile.phone or '',
+            'delivery_method': user_profile.preferred_delivery_method or 'home_delivery',
+            'shipping_address': user_profile.address or '',
+            'shipping_city': user_profile.city or '',
+            'shipping_postal_code': user_profile.postal_code or '',
+            'pickup_store': user_profile.preferred_pickup_store or 'port_louis',
+        }
+    except UserProfile.DoesNotExist:
+        profile_data = {}
+    
     saved_checkout_data = request.session.get(CHECKOUT_FORM_SESSION_KEY, {})
     checkout_data = {
         'customer_name': saved_checkout_data.get('customer_name') or request.user.get_full_name(),
         'customer_email': saved_checkout_data.get('customer_email') or request.user.email,
-        'customer_phone': saved_checkout_data.get('customer_phone', ''),
-        'delivery_method': saved_checkout_data.get('delivery_method', 'home_delivery'),
-        'shipping_address': saved_checkout_data.get('shipping_address', ''),
-        'shipping_city': saved_checkout_data.get('shipping_city', ''),
-        'shipping_postal_code': saved_checkout_data.get('shipping_postal_code', ''),
-        'pickup_store': saved_checkout_data.get('pickup_store', 'port_louis'),
+        'customer_phone': saved_checkout_data.get('customer_phone') or profile_data.get('customer_phone', ''),
+        'delivery_method': saved_checkout_data.get('delivery_method') or profile_data.get('delivery_method', 'home_delivery'),
+        'shipping_address': saved_checkout_data.get('shipping_address') or profile_data.get('shipping_address', ''),
+        'shipping_city': saved_checkout_data.get('shipping_city') or profile_data.get('shipping_city', ''),
+        'shipping_postal_code': saved_checkout_data.get('shipping_postal_code') or profile_data.get('shipping_postal_code', ''),
+        'pickup_store': saved_checkout_data.get('pickup_store') or profile_data.get('pickup_store', 'port_louis'),
         'save_details': saved_checkout_data.get('save_details', False),
         'payment_method': saved_checkout_data.get('payment_method', 'credit_card'),
     }
@@ -3098,6 +3112,7 @@ def process_payment(request, cart=None, total_amount=None):
             Notification.objects.bulk_create(order_notifs)
 
         if save_details:
+            # Save to session for form persistence
             request.session[CHECKOUT_FORM_SESSION_KEY] = {
                 'customer_name': customer_name,
                 'customer_email': customer_email,
@@ -3110,6 +3125,20 @@ def process_payment(request, cart=None, total_amount=None):
                 'save_details': True,
                 'payment_method': payment_method,
             }
+            
+            # Save to user profile for persistence across sessions
+            try:
+                user_profile = request.user.profile
+            except UserProfile.DoesNotExist:
+                user_profile = UserProfile.objects.create(user=request.user)
+            
+            user_profile.phone = customer_phone
+            user_profile.address = shipping_address if delivery_method == 'home_delivery' else ''
+            user_profile.city = shipping_city if delivery_method == 'home_delivery' else ''
+            user_profile.postal_code = shipping_postal_code if delivery_method == 'home_delivery' else ''
+            user_profile.preferred_delivery_method = delivery_method
+            user_profile.preferred_pickup_store = pickup_store or 'port_louis'
+            user_profile.save()
         else:
             request.session.pop(CHECKOUT_FORM_SESSION_KEY, None)
         request.session.modified = True

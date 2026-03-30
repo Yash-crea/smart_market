@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from .models import (
     Category, Product, SmartProducts, Cart, CartItem, Order, OrderItem, 
     Payment, Reviews, SeasonalSalesData, ProductRecommendationLog, 
-    MLForecastModel, ForecastPrediction, WeatherData, Notification
+    MLForecastModel, ForecastPrediction, WeatherData, Notification, UserProfile
 )
 from datetime import datetime, timedelta
 from django.utils import timezone
@@ -27,22 +27,45 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    user_info = serializers.SerializerMethodField()
     orders_count = serializers.SerializerMethodField()
     cart_items = serializers.SerializerMethodField()
     
     class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'date_joined', 'orders_count', 'cart_items']
-        read_only_fields = ['id', 'username', 'date_joined']
+        model = UserProfile
+        fields = [
+            'id', 'phone', 'address', 'city', 'postal_code',
+            'preferred_delivery_method', 'preferred_pickup_store',
+            'created_at', 'updated_at', 'user_info', 'orders_count', 'cart_items'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_user_info(self, obj):
+        return {
+            'id': obj.user.id,
+            'username': obj.user.username,
+            'email': obj.user.email,
+            'full_name': obj.user.get_full_name(),
+            'date_joined': obj.user.date_joined
+        }
     
     def get_orders_count(self, obj):
-        return obj.orders.count()
+        return obj.user.orders.count()
     
     def get_cart_items(self, obj):
         try:
-            return obj.cart.total_items
+            return obj.user.cart.total_items
         except:
             return 0
+
+
+class UserWithProfileSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'date_joined', 'profile']
+        read_only_fields = ['id', 'username', 'date_joined']
 
 
 # ============= PRODUCT SERIALIZERS =============

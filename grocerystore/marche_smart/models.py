@@ -257,6 +257,35 @@ class CartItem(models.Model):
         return self.product.name if self.product else self.smart_product.name
 
 
+# User Profile for persistent customer details
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    postal_code = models.CharField(max_length=20, blank=True, null=True)
+    
+    # Delivery preferences
+    preferred_delivery_method = models.CharField(
+        max_length=20, 
+        choices=[('home_delivery', 'Home Delivery'), ('store_pickup', 'Store Pickup')], 
+        default='home_delivery',
+        blank=True
+    )
+    preferred_pickup_store = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "User Profile"
+        verbose_name_plural = "User Profiles"
+
+    def __str__(self):
+        return f"Profile for {self.user.username}"
+
+
 # Smart Market Database Models (now using SQLite)
 class Customers(models.Model):
     name = models.CharField(max_length=150)

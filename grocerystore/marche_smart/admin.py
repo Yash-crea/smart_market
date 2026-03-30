@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Product, Category, Cart, CartItem,
+    Product, Category, Cart, CartItem, UserProfile,
     Customers, Employees, Suppliers, SmartProducts, Order, OrderItem,
     Payment, Reviews, Inventory, CustomerSupport, DailySales, StoreInfo, AuditLog
 )
@@ -40,6 +40,25 @@ class CartAdmin(admin.ModelAdmin):
 class CartItemAdmin(admin.ModelAdmin):
     list_display = ('cart', 'product', 'quantity')
     search_fields = ('cart__user__username', 'product__name')
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'phone', 'city', 'preferred_delivery_method', 'updated_at')
+    search_fields = ('user__username', 'user__email', 'phone', 'city')
+    list_filter = ('preferred_delivery_method', 'updated_at')
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user',)
+        }),
+        ('Contact Details', {
+            'fields': ('phone', 'address', 'city', 'postal_code')
+        }),
+        ('Preferences', {
+            'fields': ('preferred_delivery_method', 'preferred_pickup_store')
+        }),
+    )
+    readonly_fields = ('user',)
 
 
 # Smart Market Models Admin
