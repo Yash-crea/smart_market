@@ -875,23 +875,40 @@ def powerbi_customer_dashboard(request):
         
         # === PURCHASE PATTERNS ===
         try:
-            # Monthly spending pattern — ALL historical months with orders
+            # Monthly spending pattern — ALL historical months with orders + current month
             from django.db.models.functions import TruncMonth, TruncDate
             monthly_spending = []
             monthly_qs = customer_orders.annotate(month=TruncMonth('created_at')).values('month').annotate(
                 order_count=Count('id'),
                 total_spent=Sum('total_amount')
             ).order_by('month')
+            
+            # Collect existing monthly data
+            monthly_data = {}
             for entry in monthly_qs:
-                monthly_spending.append({
-                    'month': entry['month'].strftime('%Y-%m'),
+                month_key = entry['month'].strftime('%Y-%m')
+                monthly_data[month_key] = {
+                    'month': month_key,
                     'total_spent': round(float(entry['total_spent'] or 0), 2),
                     'order_count': entry['order_count']
-                })
-            # If no months with orders, add current month as zero
+                }
+            
+            # Ensure current month is always included (even if partial)
+            current_month = timezone.localtime().strftime('%Y-%m')
+            if current_month not in monthly_data:
+                monthly_data[current_month] = {
+                    'month': current_month,
+                    'total_spent': 0,
+                    'order_count': 0
+                }
+            
+            # Convert to sorted list (oldest to newest)
+            monthly_spending = sorted(monthly_data.values(), key=lambda x: x['month'])
+            
+            # Ensure we have at least current month data
             if not monthly_spending:
                 monthly_spending.append({
-                    'month': timezone.localtime().strftime('%Y-%m'),
+                    'month': current_month,
                     'total_spent': 0,
                     'order_count': 0
                 })

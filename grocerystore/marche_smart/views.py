@@ -2601,6 +2601,11 @@ def add_to_cart(request, product_id):
     """Add product to cart - restricted for owners and staff"""
     # Prevent owners and staff from accessing cart functionality
     if request.user.is_authenticated and request.user.groups.filter(name__in=['Owner', 'Staff']).exists():
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False, 
+                'error': 'Cart functionality is not available for store owners and staff.'
+            })
         messages.error(request, "Cart functionality is not available for store owners and staff.")
         return redirect('smart_market:shop')
     
@@ -2620,6 +2625,11 @@ def add_to_cart(request, product_id):
                     available_stock = 0
             
             if available_stock <= 0:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'error': f"Sorry, {product.name} is out of stock."
+                    })
                 messages.error(request, f"Sorry, {product.name} is out of stock.")
                 return redirect('smart_market:shop')
             
@@ -2648,19 +2658,55 @@ def add_to_cart(request, product_id):
                 if cart_item.quantity > available_stock:
                     cart_item.quantity = available_stock
                     cart_item.save()
-                    messages.warning(request, f"Only {available_stock} unit(s) of {product.name} available. Cart updated to maximum.")
+                    message = f"Only {available_stock} unit(s) of {product.name} available. Cart updated to maximum."
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({
+                            'success': True,
+                            'message': message,
+                            'cart_count': cart.total_items,
+                            'product_name': product.name,
+                            'product_price': str(product.price),
+                            'cart_total': str(cart.total_amount)
+                        })
+                    messages.warning(request, message)
                 else:
                     cart_item.save()
-                    messages.success(request, f"Added {product.name} to cart!")
+                    message = f"Added {product.name} to cart!"
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({
+                            'success': True,
+                            'message': message,
+                            'cart_count': cart.total_items,
+                            'product_name': product.name,
+                            'product_price': str(product.price),
+                            'cart_total': str(cart.total_amount)
+                        })
+                    messages.success(request, message)
                 return redirect('smart_market:cart')
                 
             else:
                 # Anonymous user - use session cart
                 add_to_session_cart(request, product_id, product_type, quantity)
-                messages.success(request, f"Added {product.name} to cart! Login to checkout.")
+                message = f"Added {product.name} to cart! Login to checkout."
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    _, cart_count, cart_total = get_session_cart_items(request)
+                    return JsonResponse({
+                        'success': True,
+                        'message': message,
+                        'cart_count': cart_count,
+                        'product_name': product.name,
+                        'product_price': str(product.price),
+                        'cart_total': str(cart_total)
+                    })
+                messages.success(request, message)
                 return redirect('smart_market:cart')
             
         except Exception as e:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': f"Error adding product to cart: {str(e)}"
+                })
             messages.error(request, f"Error adding product to cart: {str(e)}")
             return redirect('smart_market:shop')
     
@@ -2726,6 +2772,92 @@ def cart_count(request):
         _, count, _ = get_session_cart_items(request)
     
     return JsonResponse({'count': count})
+
+
+def mini_cart_data(request):
+    """Get mini cart data for AJAX sidebar - anonymous users and customers only"""
+    # Owners and staff should not have access to cart functionality
+    if request.user.is_authenticated and request.user.groups.filter(name__in=['Owner', 'Staff']).exists():
+        return JsonResponse({
+            'success': False,
+            'error': 'Cart functionality is not available for store owners and staff.'
+        })
+    
+    try:
+        if request.user.is_authenticated:
+            try:
+                cart = Cart.objects.get(user=request.user)
+                cart_items = cart.items.all()
+                items_data = []
+                
+                for item in cart_items:
+                    items_data.append({
+                        'id': item.id,
+                        'product_id': item.product.id if item.product else item.smart_product.id,
+                        'product_type': 'regular' if item.product else 'smart',
+                        'name': item.product_name,
+                        'price': str(item.unit_price),
+                        'quantity': item.quantity,
+                        'subtotal': str(item.subtotal),
+                        'image_url': item.product.image_url if item.product else (item.smart_product.image_url if hasattr(item.smart_product, 'image_url') else None)
+                    })
+                
+                return JsonResponse({
+                    'success': True,
+                    'items': items_data,
+                    'count': cart.total_items,
+                    'subtotal': str(cart.total_amount),
+                    'total': str(cart.total_amount * Decimal('1.15') + Decimal('50.00'))  # 15% tax + shipping
+                })
+                
+            except Cart.DoesNotExist:
+                return JsonResponse({
+                    'success': True,
+                    'items': [],
+                    'count': 0,
+                    'subtotal': '0.00',
+                    'total': '0.00'
+                })
+        else:
+            # Anonymous user - get from session
+            session_items, count, subtotal = get_session_cart_items(request)
+            items_data = []
+            
+            for item in session_items:
+                # Handle both regular and smart products
+                if item['product_type'] == 'smart':
+                    product_obj = item['smart_product']
+                    product_id = item['smart_product'].id if item['smart_product'] else 0
+                else:
+                    product_obj = item['product']
+                    product_id = item['product'].id if item['product'] else 0
+                
+                items_data.append({
+                    'id': f"{item['product_type']}_{product_id}",
+                    'product_id': product_id,
+                    'product_type': item['product_type'],
+                    'name': item.get('product_name', product_obj.name if product_obj else 'Unknown Product'),
+                    'price': str(item.get('unit_price', product_obj.price if product_obj else 0)),
+                    'quantity': item['quantity'],
+                    'subtotal': str(item['subtotal']),
+                    'image_url': product_obj.image_url if product_obj and hasattr(product_obj, 'image_url') else None
+                })
+            
+            total = subtotal * Decimal('1.15') + (Decimal('50.00') if subtotal > 0 else Decimal('0.00'))
+            
+            return JsonResponse({
+                'success': True,
+                'items': items_data,
+                'count': count,
+                'subtotal': str(subtotal),
+                'total': str(total)
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f"Error fetching cart data: {str(e)}"
+        })
 
 
 CHECKOUT_FORM_SESSION_KEY = 'checkout_form_data'

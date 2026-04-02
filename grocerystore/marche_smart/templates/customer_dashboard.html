@@ -51,7 +51,7 @@
         </div>
         
         {% if recent_orders %}
-          <div class="order-table-container">
+          <div class="order-table-container" style="max-height: 400px; overflow-y: auto; overflow-x: auto;">
             <table class="order-table">
               <thead>
                 <tr>
@@ -172,31 +172,61 @@
         </div>
       {% endif %}
 
-      <!-- Spending Analytics -->
+      <!-- Smart Shopping Insights -->
       <div class="section-card">
         <div class="section-header">
-          <h2>💰 Spending Analytics</h2>
+          <h2>📊 Your Shopping Insights</h2>
           <div class="time-filter">
             <button class="filter-btn active" onclick="changeFilter('month')">This Month</button>
             <button class="filter-btn" onclick="changeFilter('year')">This Year</button>
           </div>
         </div>
         
+        <!-- Smart Market Metrics -->
+        <div class="smart-metrics-grid">
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon">💳</span>
+              <span class="metric-label">Avg Order</span>
+            </div>
+            <div class="metric-value">Rs {{ average_order_value|floatformat:0 }}</div>
+            <div class="metric-change positive">+12%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon">🛒</span>
+              <span class="metric-label">Shopping Score</span>
+            </div>
+            <div class="metric-value">{{ total_orders }}{% if total_orders > 10 %}+{% endif %}</div>
+            <div class="metric-change {% if total_orders > 5 %}positive{% else %}neutral{% endif %}">{% if total_orders > 5 %}Premium{% else %}Standard{% endif %}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon">📅</span>
+              <span class="metric-label">Last Order</span>
+            </div>
+            <div class="metric-value">{% if recent_orders %}{{ recent_orders.0.created_at|timesince|truncatewords:1 }}{% else %}N/A{% endif %}</div>
+            <div class="metric-change neutral">ago</div>
+          </div>
+        </div>
+        
         <div class="spending-chart">
           <div class="chart-header">
-            <h4>Monthly Spending Trend</h4>
+            <h4>Shopping Trend</h4>
+            <span id="chartDateRange" style="font-size:.75rem;color:#666;margin-left:8px;">Loading...</span>
             <span id="trendIndicator" class="trend-indicator neutral">⏳ Loading...</span>
-            <span style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:3px 10px;background:linear-gradient(135deg,#f5c518,#f7d94e);color:#222;border-radius:12px;font-size:.7rem;font-weight:700;letter-spacing:.5px;">
-              ⚡ Power BI
+            <span style="display:inline-flex;align-items:center;gap:4px;margin-left:8px;padding:2px 8px;background:linear-gradient(135deg,#f5c518,#f7d94e);color:#222;border-radius:10px;font-size:.65rem;font-weight:600;letter-spacing:.3px;">
+              ⚡ Smart Analytics
             </span>
-            <span id="pbi-live" style="font-size:.7rem;color:#28a745;margin-left:6px;">● Live</span>
+            <span id="pbi-live" style="font-size:.65rem;color:#28a745;margin-left:6px;">● Live</span>
+            <button onclick="loadCustomerPBI()" style="margin-left:8px;padding:2px 6px;background:#28a745;color:white;border:none;border-radius:4px;font-size:.7rem;cursor:pointer;" title="Refresh Data">🔄</button>
           </div>
-          <div id="chartContainer" style="position:relative; width:100%; max-width:700px; margin:0 auto;">
-            <div id="chartLoading" style="text-align:center;padding:3rem;">
-              <div style="font-size:2rem;margin-bottom:.5rem;">📊</div>
-              <p style="color:#666;">Fetching Power BI data...</p>
+          <div id="chartContainer" style="position:relative; width:100%; max-width:450px; margin:0 auto;">
+            <div id="chartLoading" style="text-align:center;padding:2rem;">
+              <div style="font-size:1.5rem;margin-bottom:.3rem;">📊</div>
+              <p style="color:#666;font-size:.9rem;">Fetching your data...</p>
             </div>
-            <canvas id="spendingChart" height="220" style="display:none;"></canvas>
+            <canvas id="spendingChart" height="140" style="display:none;"></canvas>
           </div>
         </div>
 
@@ -204,19 +234,36 @@
           <div class="insight-item">
             <span class="insight-icon">🛒</span>
             <div class="insight-text">
-              <strong>Most Purchased:</strong> <span id="topProduct">Loading...</span>
+              <strong>Favorite Item:</strong> <span id="topProduct">Loading...</span>
             </div>
           </div>
           <div class="insight-item">
-            <span class="insight-icon">📅</span>
+            <span class="insight-icon">🔍</span>
             <div class="insight-text">
-              <strong>Shopping Pattern:</strong> <span id="shoppingPattern">Loading...</span>
+              <strong>Shopping Style:</strong> <span id="shoppingPattern">Loading...</span>
+            </div>
+          </div>
+          <div class="insight-item">
+            <span class="insight-icon">⭐</span>
+            <div class="insight-text">
+              <strong>Status:</strong> <span style="color: #2b8a3e; font-weight: 600;">{{ customer_stats.loyalty_status }} Member</span>
             </div>
           </div>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
         <script>
+        // Prevent mgt.clearMarks error - add performance API polyfill
+        if (typeof window.performance === 'undefined') {
+          window.performance = {};
+        }
+        if (typeof window.performance.clearMarks === 'undefined') {
+          window.performance.clearMarks = function() {};
+        }
+        if (typeof window.performance.mark === 'undefined') {
+          window.performance.mark = function() {};
+        }
+        
         (function(){
           var customerChart = null;
           function getCookie(name){
@@ -242,36 +289,68 @@
             // --- Monthly spending chart ---
             var monthly = data.spending_patterns && data.spending_patterns.monthly_spending_12m
                         ? data.spending_patterns.monthly_spending_12m : [];
-            // API now returns oldest-first (all historical months)
+            // API now returns oldest-first (includes current month)
             var sliced = monthly.slice();
             var monthNames = {
               '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun',
               '07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'
             };
+            
+            // Get current month for comparison
+            var currentDate = new Date();
+            var currentMonth = currentDate.getFullYear() + '-' + String(currentDate.getMonth() + 1).padStart(2, '0');
+            
             var labels = sliced.map(function(m){
               var parts = m.month.split('-');
-              return (monthNames[parts[1]]||parts[1]) + ' ' + parts[0].slice(2);
+              var monthLabel = (monthNames[parts[1]]||parts[1]) + ' ' + parts[0];
+              // Mark current month as "Current"
+              if(m.month === currentMonth) {
+                monthLabel += ' (Now)';
+              }
+              return monthLabel;
             });
             var amounts = sliced.map(function(m){ return m.total_spent; });
             var orders  = sliced.map(function(m){ return m.order_count; });
 
-            // Trend indicator
+            // Update date range display
+            var dateRangeElement = document.getElementById('chartDateRange');
+            if (sliced.length > 0) {
+              var firstMonth = sliced[0].month;
+              var lastMonth = sliced[sliced.length - 1].month;
+              if (firstMonth === lastMonth) {
+                var parts = lastMonth.split('-');
+                dateRangeElement.textContent = monthNames[parts[1]] + ' ' + parts[0];
+              } else {
+                var firstParts = firstMonth.split('-');
+                var lastParts = lastMonth.split('-');
+                dateRangeElement.textContent = monthNames[firstParts[1]] + ' ' + firstParts[0] + ' - ' + monthNames[lastParts[1]] + ' ' + lastParts[0];
+              }
+            } else {
+              dateRangeElement.textContent = 'No data yet';
+            }
+
+            // Trend indicator with current month awareness
             var indicator = document.getElementById('trendIndicator');
             if(amounts.length >= 2 && amounts[amounts.length-2] > 0){
+              var currentMonth = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
+              var isCurrentMonth = sliced[sliced.length-1].month === currentMonth;
+              
               var trend = ((amounts[amounts.length-1] - amounts[amounts.length-2]) / amounts[amounts.length-2] * 100).toFixed(1);
+              var monthText = isCurrentMonth ? 'this month (partial)' : 'vs last month';
+              
               if(trend > 0){
                 indicator.className = 'trend-indicator positive';
-                indicator.textContent = '📈 +' + trend + '% vs last month';
+                indicator.textContent = '📈 +' + trend + '% ' + monthText;
               } else if(trend < 0){
                 indicator.className = 'trend-indicator negative';
-                indicator.textContent = '📉 ' + trend + '% vs last month';
+                indicator.textContent = '📉 ' + trend + '% ' + monthText;
               } else {
                 indicator.className = 'trend-indicator neutral';
-                indicator.textContent = '➡️ No change vs last month';
+                indicator.textContent = '➡️ ' + (isCurrentMonth ? 'This month starting' : 'No change from last month');
               }
             } else {
               indicator.className = 'trend-indicator neutral';
-              indicator.textContent = '➡️ Not enough data yet';
+              indicator.textContent = '➡️ Building your shopping history...';
             }
 
             // Render chart
@@ -285,37 +364,59 @@
               canvas.style.display = 'none';
               return;
             }
-            customerChart = new Chart(canvas.getContext('2d'), {
-              type: 'bar',
+            
+            try {
+              customerChart = new Chart(canvas.getContext('2d'), {
+              type: 'line',
               data: {
                 labels: labels,
                 datasets: [{
                   label: 'Spending (Rs)',
                   data: amounts,
-                  backgroundColor: 'rgba(43, 138, 62, 0.7)',
                   borderColor: 'rgba(43, 138, 62, 1)',
-                  borderWidth: 1,
-                  borderRadius: 6,
+                  backgroundColor: 'rgba(43, 138, 62, 0.1)',
+                  borderWidth: 2.5,
+                  tension: 0.4,
+                  pointRadius: 4,
+                  pointHoverRadius: 6,
+                  pointBackgroundColor: 'rgba(43, 138, 62, 1)',
+                  pointBorderColor: '#fff',
+                  pointBorderWidth: 2,
+                  fill: true,
                   yAxisID: 'y'
                 },{
                   label: 'Orders',
                   data: orders,
-                  type: 'line',
                   borderColor: '#7c3aed',
                   backgroundColor: 'rgba(124,58,237,0.1)',
-                  tension: 0.3,
+                  borderWidth: 2.5,
+                  tension: 0.4,
                   pointRadius: 4,
+                  pointHoverRadius: 6,
                   pointBackgroundColor: '#7c3aed',
-                  yAxisID: 'y1',
-                  fill: true
+                  pointBorderColor: '#fff',
+                  pointBorderWidth: 2,
+                  fill: true,
+                  yAxisID: 'y1'
                 }]
               },
               options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                  legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } },
+                  legend: { 
+                    position: 'bottom', 
+                    labels: { 
+                      usePointStyle: true, 
+                      padding: 12,
+                      font: { size: 11 }
+                    } 
+                  },
                   tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleFont: { size: 11 },
+                    bodyFont: { size: 10 },
                     callbacks: {
                       label: function(c){
                         if(c.dataset.label==='Spending (Rs)') return 'Rs ' + c.parsed.y.toFixed(2);
@@ -325,11 +426,34 @@
                   }
                 },
                 scales: {
-                  y:  { beginAtZero:true, title:{display:true,text:'Spending (Rs)'}, grid:{color:'rgba(0,0,0,0.05)'} },
-                  y1: { beginAtZero:true, position:'right', title:{display:true,text:'Orders'}, grid:{drawOnChartArea:false} }
+                  x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10 } }
+                  },
+                  y: { 
+                    beginAtZero: true, 
+                    title: { display: true, text: 'Spending', font: { size: 10 } }, 
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: { font: { size: 10 } }
+                  },
+                  y1: { 
+                    beginAtZero: true, 
+                    position: 'right', 
+                    title: { display: true, text: 'Orders', font: { size: 10 } }, 
+                    grid: { drawOnChartArea: false },
+                    ticks: { font: { size: 10 } }
+                  }
                 }
               }
             });
+            
+            } catch(chartError) {
+              console.error('Chart.js creation error:', chartError);
+              document.getElementById('chartLoading').style.display = 'block';
+              document.getElementById('chartLoading').innerHTML = '<p style="color:#e53e3e;">Chart creation failed: ' + chartError.message + '</p>';
+              canvas.style.display = 'none';
+              return;
+            }
 
             // --- Insights ---
             var favs = data.spending_patterns && data.spending_patterns.favorite_products

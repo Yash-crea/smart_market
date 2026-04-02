@@ -84,9 +84,19 @@
             <svg viewBox="0 0 24 24" width="20" height="20">
               <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
             </svg>
-            <span class="cart-count">{{ request.session.cart_count|default:0 }}</span>
+            <span class="cart-count">{{ cart_count|default:0 }}</span>
           </a>
         </li>
+        {% endif %}
+        {% comment %}Dashboard links for authenticated users{% endcomment %}
+        {% if request.user.is_authenticated %}
+          {% if request.user.is_superuser or request.user.groups.all.0.name == 'Owner' %}
+            <li><a href="{% url 'smart_market:owner_dashboard' %}">Dashboard</a></li>
+          {% elif request.user.groups.all.0.name == 'Staff' %}
+            <li><a href="{% url 'smart_market:staff_dashboard' %}">Dashboard</a></li>
+          {% else %}
+            <li><a href="{% url 'smart_market:customer_dashboard' %}">My Dashboard</a></li>
+          {% endif %}
         {% endif %}
         <li>
           {% if request.user.is_authenticated %}
@@ -409,6 +419,488 @@
       text-decoration: none;
     }
   </style>
+
+  <!-- Mini Cart Sidebar -->
+  {% if can_access_cart %}
+  <div id="miniCartOverlay" class="mini-cart-overlay">
+    <div class="mini-cart-sidebar">
+      <div class="mini-cart-header">
+        <h3>Shopping Cart</h3>
+        <button type="button" class="mini-cart-close" onclick="closeMiniCart()">&times;</button>
+      </div>
+      <div class="mini-cart-body">
+        <div id="miniCartLoader" class="mini-cart-loader">Loading...</div>
+        <div id="miniCartContent" class="mini-cart-content"></div>
+        <div id="miniCartEmpty" class="mini-cart-empty" style="display: none;">
+          <p>Your cart is empty</p>
+          <a href="{% url 'smart_market:shop' %}" class="btn-continue-shopping">Start Shopping</a>
+        </div>
+      </div>
+      <div class="mini-cart-footer">
+        <div class="mini-cart-total">
+          <strong>Total: Rs <span id="miniCartTotal">0.00</span></strong>
+        </div>
+        <div class="mini-cart-actions">
+          <a href="{% url 'smart_market:shop' %}" class="btn-continue-shopping">Continue Shopping</a>
+          <a href="{% url 'smart_market:cart' %}" class="btn-view-cart">View Cart</a>
+          <a href="{% url 'smart_market:checkout' %}" class="btn-checkout">Checkout</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Notification System -->
+  <div id="notification" class="notification"></div>
+
+  <style>
+    /* Mini Cart Styles */
+    .mini-cart-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 9999;
+      display: none;
+    }
+
+    .mini-cart-overlay.active {
+      display: block;
+    }
+
+    .mini-cart-sidebar {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 420px;
+      height: 100%;
+      background: white;
+      box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mini-cart-overlay.active .mini-cart-sidebar {
+      transform: translateX(0);
+    }
+
+    .mini-cart-header {
+      padding: 1rem;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mini-cart-header h3 {
+      margin: 0;
+      color: #333;
+    }
+
+    .mini-cart-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .mini-cart-body {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+
+    .mini-cart-loader {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+    }
+
+    .mini-cart-item {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .mini-cart-item img {
+      width: 50px;
+      height: 50px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-right: 0.75rem;
+    }
+
+    .mini-cart-item-info {
+      flex: 1;
+    }
+
+    .mini-cart-item-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      font-size: 0.9rem;
+    }
+
+    .mini-cart-item-price {
+      color: #666;
+      font-size: 0.85rem;
+    }
+
+    .mini-cart-item-quantity {
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+
+    .mini-cart-footer {
+      border-top: 1px solid #eee;
+      padding: 1rem;
+    }
+
+    .mini-cart-total {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .mini-cart-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .btn-continue-shopping,
+    .btn-view-cart,
+    .btn-checkout {
+      padding: 0.75rem;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: background-color 0.2s;
+    }
+
+    .btn-continue-shopping {
+      background: #f8f9fa;
+      color: #333;
+    }
+
+    .btn-continue-shopping:hover {
+      background: #e9ecef;
+    }
+
+    .btn-view-cart {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-view-cart:hover {
+      background: #5a6268;
+    }
+
+    .btn-checkout {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-checkout:hover {
+      background: #218838;
+    }
+
+    .mini-cart-empty {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+    }
+
+    /* Notification Styles */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 1rem 1.5rem;
+      border-radius: 6px;
+      color: white;
+      font-weight: 600;
+      max-width: 350px;
+      z-index: 10000;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+    }
+
+    .notification.show {
+      transform: translateX(0);
+    }
+
+    .notification.success {
+      background: #28a745;
+    }
+
+    .notification.error {
+      background: #dc3545;
+    }
+
+    .notification.warning {
+      background: #ffc107;
+      color: #333;
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 480px) {
+      .mini-cart-sidebar {
+        width: 100%;
+      }
+    }
+
+    /* Enhanced cart link with click to show mini cart */
+    .cart-link {
+      cursor: pointer;
+      position: relative;
+    }
+
+    .cart-link .cart-count {
+      animation: none;
+    }
+
+    .cart-link .cart-count.updated {
+      animation: bounce 0.6s ease;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 53%, 80%, 100% {
+        transform: translate3d(0, 0, 0);
+      }
+      40%, 43% {
+        transform: translate3d(0, -8px, 0);
+      }
+      70% {
+        transform: translate3d(0, -4px, 0);
+      }
+      90% {
+        transform: translate3d(0, -2px, 0);
+      }
+    }
+
+    /* Add to cart button enhancements */
+    .btn-add-to-cart,
+    button[type="submit"]:contains("Add to Cart"),
+    button:contains("🛒 Add to Cart") {
+      transition: all 0.2s ease;
+    }
+
+    .btn-add-to-cart:hover,
+    button[type="submit"]:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-add-to-cart:active,
+    button[type="submit"]:active {
+      transform: translateY(0);
+    }
+
+    /* Loading state for buttons */
+    button[disabled] {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+  </style>
+
+  <script>
+    // Mini Cart JavaScript
+    let cartUpdateTimeout;
+
+    // Show notification
+    function showNotification(message, type = 'success') {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = `notification ${type} show`;
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+
+    // Open mini cart
+    function openMiniCart() {
+      const overlay = document.getElementById('miniCartOverlay');
+      if (overlay) {
+        overlay.classList.add('active');
+        loadMiniCartData();
+      }
+    }
+
+    // Close mini cart
+    function closeMiniCart() {
+      const overlay = document.getElementById('miniCartOverlay');
+      if (overlay) {
+        overlay.classList.remove('active');
+      }
+    }
+
+    // Load mini cart data
+    function loadMiniCartData() {
+      const loader = document.getElementById('miniCartLoader');
+      const content = document.getElementById('miniCartContent');
+      const empty = document.getElementById('miniCartEmpty');
+      const total = document.getElementById('miniCartTotal');
+
+      if (!loader || !content) return;
+
+      loader.style.display = 'block';
+      content.innerHTML = '';
+      empty.style.display = 'none';
+
+      fetch('{% url "smart_market:mini_cart_data" %}')
+        .then(response => response.json())
+        .then(data => {
+          loader.style.display = 'none';
+          
+          if (data.success) {
+            if (data.items.length > 0) {
+              content.innerHTML = data.items.map(item => `
+                <div class="mini-cart-item">
+                  ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" onerror="this.style.display='none'">` : '<div style="width: 50px; height: 50px; background: #f0f0f0; margin-right: 0.75rem; border-radius: 4px;"></div>'}
+                  <div class="mini-cart-item-info">
+                    <div class="mini-cart-item-name">${item.name}</div>
+                    <div class="mini-cart-item-price">Rs ${item.price} x <span class="mini-cart-item-quantity">${item.quantity}</span></div>
+                  </div>
+                </div>
+              `).join('');
+              total.textContent = data.total;
+            } else {
+              empty.style.display = 'block';
+              total.textContent = '0.00';
+            }
+          } else {
+            content.innerHTML = '<div style="text-align: center; padding: 1rem; color: #dc3545;">Error loading cart</div>';
+          }
+        })
+        .catch(error => {
+          loader.style.display = 'none';
+          content.innerHTML = '<div style="text-align: center; padding: 1rem; color: #dc3545;">Error loading cart</div>';
+        });
+    }
+
+    // Update cart count in header
+    function updateCartCount() {
+      fetch('{% url "smart_market:cart_count" %}')
+        .then(response => response.json())
+        .then(data => {
+          const cartCount = document.querySelector('.cart-count');
+          if (cartCount) {
+            const newCount = data.count || 0;
+            const oldCount = parseInt(cartCount.textContent) || 0;
+            
+            cartCount.textContent = newCount;
+            
+            // Add animation if count increased
+            if (newCount > oldCount) {
+              cartCount.classList.add('updated');
+              setTimeout(() => {
+                cartCount.classList.remove('updated');
+              }, 600);
+            }
+          }
+        })
+        .catch(error => console.error('Error updating cart count:', error));
+    }
+
+    // AJAX Add to Cart
+    function addToCartAjax(productId, productType = 'smart', quantity = 1, button = null) {
+      // Show loading state on button
+      if (button) {
+        const originalText = button.textContent;
+        button.textContent = 'Adding...';
+        button.disabled = true;
+      }
+
+      const formData = new FormData();
+      formData.append('quantity', quantity);
+      formData.append('product_type', productType);
+      formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+      fetch(`/cart/add/${productId}/`, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showNotification(data.message, 'success');
+          updateCartCount();
+          
+          // Auto-open mini cart after successful add
+          setTimeout(() => {
+            openMiniCart();
+          }, 500);
+        } else {
+          showNotification(data.error, 'error');
+        }
+      })
+      .catch(error => {
+        showNotification('Error adding item to cart', 'error');
+        console.error('Error:', error);
+      })
+      .finally(() => {
+        // Restore button state
+        if (button) {
+          button.textContent = button.textContent.includes('🛒') ? '🛒 Add to Cart' : 'Add to Cart';
+          button.disabled = false;
+        }
+      });
+    }
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      // Handle cart link clicks to show mini cart
+      const cartLink = document.querySelector('.cart-link');
+      if (cartLink) {
+        cartLink.addEventListener('click', function(e) {
+          e.preventDefault();
+          openMiniCart();
+        });
+      }
+
+      // Close mini cart when clicking overlay
+      const overlay = document.getElementById('miniCartOverlay');
+      if (overlay) {
+        overlay.addEventListener('click', function(e) {
+          if (e.target === overlay) {
+            closeMiniCart();
+          }
+        });
+      }
+
+      // Handle form submissions for add to cart with AJAX
+      document.addEventListener('submit', function(e) {
+        const form = e.target;
+        if (form.action && form.action.includes('/cart/add/')) {
+          e.preventDefault();
+          
+          const productIdMatch = form.action.match(/\/cart\/add\/(\d+)\//);
+          if (!productIdMatch) return;
+          
+          const productId = productIdMatch[1];
+          const quantity = form.querySelector('[name="quantity"]')?.value || 1;
+          const productType = form.querySelector('[name="product_type"]')?.value || 'smart';
+          const submitButton = form.querySelector('button[type="submit"]');
+          
+          addToCartAjax(productId, productType, quantity, submitButton);
+        }
+      });
+
+      // Initial cart count update
+      updateCartCount();
+    });
+  </script>
 
   <script src="{% static 'index.js' %}"></script>
 </body>

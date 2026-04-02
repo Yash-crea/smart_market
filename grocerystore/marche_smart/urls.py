@@ -34,6 +34,7 @@ urlpatterns = [
     path('customer/', views.customer_dashboard, name='customer_dashboard'),
     path('cart/', views.cart, name='cart'),
     path('cart/count/', views.cart_count, name='cart_count'),
+    path('cart/mini-data/', views.mini_cart_data, name='mini_cart_data'),
     path('cart/add/<int:product_id>/', views.add_to_cart, name='add_to_cart'),
     path('cart/remove/<str:product_id>/', views.remove_from_cart, name='remove_from_cart'),
     path('cart/update/<int:product_id>/', views.update_cart, name='update_cart'),
