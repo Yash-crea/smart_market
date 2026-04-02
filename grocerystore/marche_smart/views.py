@@ -1419,7 +1419,8 @@ def shop(request):
         
         # Get trending products — ordered by REAL demand from orders
         trending_products = SmartProducts.objects.filter(
-            predicted_demand_7d__gt=0
+            predicted_demand_7d__gt=0,
+            stock_quantity__gt=0
         ).order_by('-predicted_demand_7d')[:4]
         
         for product in trending_products:

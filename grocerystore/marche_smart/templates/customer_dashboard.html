@@ -911,13 +911,196 @@ function copyPBIUrl() {
   
   .spending-insights {
     grid-template-columns: 1fr;
+  display: grid;
+  gap: 1rem;
+}
+
+.insight-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* INSIGHTS RESPONSIVE */
+@media screen and (max-width: 600px) {
+  .spending-insights {
+    gap: 0.6rem !important;
   }
   
+  .insight-item {
+    padding: 0.6rem !important;
+    gap: 0.6rem !important;
+  }
+  
+  .insight-text {
+    font-size: 0.85rem !important;
+  }
+  
+  .insight-icon {
+    font-size: 1.2rem;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .insight-item {
+    padding: 0.5rem !important;
+    gap: 0.5rem !important;
+  }
+  
+  .insight-text {
+    font-size: 0.8rem !important;
+  }
+  
+  .insight-icon {
+    font-size: 1rem;
+  }
   .wishlist-grid {
     grid-template-columns: 1fr;
   }
   
   .wishlist-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+/* PWA & Small Screen Optimizations for Charts */
+@media (max-width: 480px) {
+  .spending-chart {
+    margin: 1rem 0;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+  }
+  
+  .chart-header h4 {
+    font-size: 0.9rem;
+  }
+  
+  #chartContainer {
+    max-width: 100% !important;
+    padding: 0;
+  }
+  
+  #spendingChart {
+    max-width: 100% !important;
+    height: 120px !important;
+  }
+  
+  .trend-indicator {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+  }
+  
+  .mini-chart {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
+  /* Chart loading state */
+  #chartLoading {
+    padding: 1rem !important;
+    font-size: 0.8rem;
+  }
+  
+  /* Dashboard cards responsive */
+  .dashboard-stats .stat-item {
+    padding: 0.8rem;
+  }
+  
+  .stat-value {
+    font-size: 1.2rem !important;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .spending-chart {
+    margin: 0.8rem 0;
+  }
+  
+  .chart-header h4 {
+    font-size: 0.8rem;
+  }
+  
+  #spendingChart {
+    height: 100px !important;
+  }
+  
+  .trend-indicator {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+  }
+  
+  .mini-chart {
+    padding: 0.8rem;
+    border-radius: 6px;
+  }
+  
+  #chartLoading {
+    padding: 0.8rem !important;
+    font-size: 0.75rem;
+  }
+  
+  /* Ultra compact dashboard stats */
+  .dashboard-stats .stat-item {
+    padding: 0.6rem;
+  }
+  
+  .stat-value {
+    font-size: 1rem !important;
+  }
+  
+  .stat-label {
+    font-size: 0.7rem;
+  }
+  
+  /* Section cards compact */
+  .section-card {
+    padding: 0.8rem;
+      margin-bottom: 0.8rem;
+  }
+  
+  .section-card h3 {
+    font-size: 0.9rem;
+    margin-bottom: 0.6rem;
+  }
+}
+
+/* PWA Standalone Mode Specific */
+@media (display-mode: standalone) and (max-width: 400px) {
+  .spending-chart {
+    background: white;
+    border-radius: 8px;
+    padding: 0.8rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  
+  #spendingChart {
+    border-radius: 4px;
+  }
+  
+  .chart-header {
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  /* PWA specific chart styling */
+  .mini-chart {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+}
     flex-direction: column;
   }
 }
@@ -961,6 +1144,184 @@ function copyPBIUrl() {
   color: #333;
 }
 
+/* IMMEDIATE MOBILE RESPONSIVE - FORCE OVERRIDE */
+@media screen and (max-width: 600px) {
+  .spending-chart {
+    margin: 1rem 0 !important;
+    width: 100% !important;
+  }
+  
+  .chart-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+    margin-bottom: 0.8rem !important;
+  }
+  
+  .chart-header h4 {
+    font-size: 0.85rem !important;
+  }
+  
+  #chartContainer {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  
+  #spendingChart {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 120px !important;
+  }
+  
+  .dashboard-stats .stat-item {
+    padding: 0.8rem !important;
+  }
+  
+  .stat-value {
+    font-size: 1.1rem !important;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .spending-chart {
+    margin: 0.8rem 0 !important;
+  }
+  
+  .chart-header h4 {
+    font-size: 0.75rem !important;
+  }
+  
+  #spendingChart {
+    height: 100px !important;
+  }
+  
+  .dashboard-stats .stat-item {
+    padding: 0.6rem !important;
+  }
+  
+  .stat-value {
+    font-size: 1rem !important;
+  }
+  
+  #chartLoading {
+    padding: 0.8rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* ===== ORDER SUMMARY TABLE RESPONSIVE - IMMEDIATE FIXES ===== */
+@media screen and (max-width: 600px) {
+  .section-card {
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+    border-radius: 8px !important;
+    background: white !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+  }
+  
+  .section-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+  
+  .section-header h2 {
+    font-size: 1rem !important;
+    margin: 0 !important;
+  }
+  
+  .order-table-container {
+    overflow-x: auto !important;
+    max-height: 300px !important;
+    border-radius: 6px !important;
+    border: 1px solid #eee !important;
+  }
+  
+  .order-table {
+    font-size: 0.75rem !important;
+    min-width: 500px !important;
+  }
+  
+  .order-table th,
+  .order-table td {
+    padding: 0.4rem 0.2rem !important;
+    white-space: nowrap !important;
+  }
+  
+  .order-table th {
+    font-size: 0.7rem !important;
+    background: #f8f9fa !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1 !important;
+  }
+  
+  .order-number {
+    color: #2b8a3e !important;
+    font-weight: 600 !important;
+  }
+  
+  .delivery-badge,
+  .status-badge {
+    font-size: 0.65rem !important;
+    padding: 0.2rem 0.4rem !important;
+    border-radius: 4px !important;
+    white-space: nowrap !important;
+  }
+  
+  .btn-small {
+    font-size: 0.65rem !important;
+    padding: 0.2rem 0.4rem !important;
+    border-radius: 4px !important;
+    margin: 0.1rem !important;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .section-card {
+    padding: 0.8rem !important;
+    margin-bottom: 0.8rem !important;
+  }
+  
+  .section-header h2 {
+    font-size: 0.9rem !important;
+  }
+  
+  .order-table-container {
+    max-height: 250px !important;
+  }
+  
+  .order-table {
+    font-size: 0.7rem !important;
+  }
+  
+  .order-table th {
+    font-size: 0.65rem !important;
+  }
+  
+  .order-table th,
+  .order-table td {
+    padding: 0.3rem 0.1rem !important;
+  }
+  
+  .delivery-badge,
+  .status-badge {
+    font-size: 0.6rem !important;
+    padding: 0.15rem 0.3rem !important;
+  }
+  
+  .btn-small {
+    font-size: 0.6rem !important;
+    padding: 0.15rem 0.3rem !important;
+  }
+  
+  .view-all-btn {
+    font-size: 0.75rem !important;
+  }
+}
+
 .trend-indicator {
   font-size: 0.9rem;
   padding: 0.3rem 0.8rem;
@@ -977,6 +1338,61 @@ function copyPBIUrl() {
   background: #f8f9fa;
   padding: 1.5rem;
   border-radius: 10px;
+}
+
+/* POWER BI METRICS CARDS RESPONSIVE */
+.smart-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.metric-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border-left: 4px solid #2b8a3e;
+}
+
+@media screen and (max-width: 600px) {
+  .smart-metrics-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.8rem !important;
+  }
+  
+  .metric-card {
+    padding: 0.8rem !important;
+    border-radius: 6px;
+  }
+  
+  .metric-value {
+    font-size: 1.1rem !important;
+  }
+  
+  .metric-label {
+    font-size: 0.8rem !important;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .smart-metrics-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.6rem !important;
+  }
+  
+  .metric-card {
+    padding: 0.6rem !important;
+  }
+  
+  .metric-value {
+    font-size: 1rem !important;
+  }
+  
+  .metric-label {
+    font-size: 0.75rem !important;
+  }
 }
 
 .chart-bars {
@@ -1473,5 +1889,183 @@ setInterval(function() {
     }
   });
 }, 30000);
+
+  // ── Compact View ──
+  function toggleCompactView() {
+    var dash = document.querySelector('.dashboard');
+    var btn  = document.getElementById('compactToggleBtn');
+    var icon = document.getElementById('compactIcon');
+    var lbl  = document.getElementById('compactLabel');
+    var on = dash.classList.toggle('compact-view');
+    btn.classList.toggle('active', on);
+    icon.textContent = on ? '⊟' : '⊞';
+    lbl.textContent  = on ? 'Expand' : 'Compact';
+    localStorage.setItem('pwaCompact', on ? '1' : '0');
+    if (on) bindCollapse();
+  }
+
+  function bindCollapse() {
+    document.querySelectorAll('.section-card .section-header, .section-card h2').forEach(function(h) {
+      if (!h.dataset.cb) {
+        h.dataset.cb = '1';
+        h.style.cursor = 'pointer';
+        h.addEventListener('click', function() {
+          h.closest('.section-card').classList.toggle('collapsed');
+        });
+      }
+    });
+  }
+
+  (function restoreCompact() {
+    if (localStorage.getItem('pwaCompact') === '1') {
+      var dash = document.querySelector('.dashboard');
+      if (!dash) return;
+      dash.classList.add('compact-view');
+      var btn  = document.getElementById('compactToggleBtn');
+      var icon = document.getElementById('compactIcon');
+      var lbl  = document.getElementById('compactLabel');
+      if (btn)  btn.classList.add('active');
+      if (icon) icon.textContent = '⊟';
+      if (lbl)  lbl.textContent  = 'Expand';
+      bindCollapse();
+    }
+  })();
 </script>
+
+<!-- Compact View Toggle Button -->
+<button id="compactToggleBtn" class="compact-toggle-btn" onclick="toggleCompactView()" title="Toggle compact view for mobile/PWA">
+  <span id="compactIcon">⊞</span>
+  <span id="compactLabel">Compact</span>
+</button>
+
+<style>
+.compact-toggle-btn {
+  position: fixed;
+  bottom: 90px;
+  left: 16px;
+  background: #2b8a3e;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 998;
+  transition: all 0.25s ease;
+}
+.compact-toggle-btn:hover { background: #37b24d; transform: scale(1.05); }
+.compact-toggle-btn.active { background: #495057; }
+
+/* ── Compact mode ── */
+.dashboard.compact-view {
+  padding: 0.4rem !important;
+}
+.dashboard.compact-view .dashboard-header h1 {
+  font-size: 1.2rem;
+  margin-bottom: 0.2rem;
+}
+.dashboard.compact-view .dashboard-subtitle {
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+.dashboard.compact-view .dashboard-stats {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  gap: 0.4rem;
+  padding-bottom: 0.3rem;
+}
+.dashboard.compact-view .stat-card {
+  min-width: 100px;
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+}
+.dashboard.compact-view .stat-icon { font-size: 1.1rem; }
+.dashboard.compact-view .stat-number { font-size: 0.9rem !important; }
+.dashboard.compact-view .stat-label  { font-size: 0.65rem; }
+.dashboard.compact-view .stat-trend  { display: none; }
+
+.dashboard.compact-view .dashboard-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.dashboard.compact-view .section-card {
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.dashboard.compact-view .section-card .section-header,
+.dashboard.compact-view .section-card h2 {
+  background: #f8f9fa;
+  padding: 0.6rem 0.8rem;
+  margin: 0;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+.dashboard.compact-view .section-card .section-header::after,
+.dashboard.compact-view .section-card > h2::after {
+  content: '▼';
+  font-size: 0.7rem;
+  color: #666;
+  margin-left: 6px;
+}
+.dashboard.compact-view .section-card.collapsed .section-header::after,
+.dashboard.compact-view .section-card.collapsed > h2::after {
+  content: '▶';
+}
+.dashboard.compact-view .section-card.collapsed > *:not(.section-header):not(h2) {
+  display: none !important;
+}
+.dashboard.compact-view .order-table-container {
+  max-height: 220px !important;
+}
+.dashboard.compact-view .order-table {
+  font-size: 0.72rem;
+}
+.dashboard.compact-view .order-table th,
+.dashboard.compact-view .order-table td {
+  padding: 0.25rem 0.2rem;
+  white-space: nowrap;
+}
+.dashboard.compact-view .smart-metrics-grid {
+  gap: 0.4rem;
+}
+.dashboard.compact-view .metric-card {
+  padding: 0.5rem;
+}
+.dashboard.compact-view .metric-value {
+  font-size: 1rem;
+}
+.dashboard.compact-view .spending-chart canvas {
+  max-height: 120px;
+}
+.dashboard.compact-view .profile-card {
+  padding: 0.75rem;
+}
+.dashboard.compact-view .tracking-container {
+  max-height: 180px;
+  overflow-y: auto;
+}
+.dashboard.compact-view .spending-insights {
+  padding: 0.5rem;
+}
+.dashboard.compact-view .insight-item {
+  padding: 0.3rem 0;
+  font-size: 0.85rem;
+}
+</style>
 {% endblock %}

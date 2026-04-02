@@ -642,6 +642,63 @@
   .pbi-kpi span { display:block; font-size:1.3rem; font-weight:700; color:#333; }
   .pbi-kpi small { color:#777; font-size:.75rem; }
 
+  /* IMMEDIATE MOBILE RESPONSIVE - FORCE OVERRIDE */  
+  @media screen and (max-width: 600px) {
+    .pbi-grid { 
+      display: grid !important; 
+      grid-template-columns: 1fr !important; 
+      gap: 0.8rem !important; 
+    }
+    .pbi-card { 
+      padding: 0.8rem !important; 
+      margin-bottom: 0.8rem !important;
+      width: 100% !important;
+    }
+    .pbi-card h4 { 
+      font-size: 0.8rem !important; 
+      margin-bottom: 0.5rem !important; 
+    }
+    #revenueChart, #orderPieChart, #topProductsChart {
+      max-width: 100% !important;
+      height: 120px !important;
+      width: 100% !important;
+    }
+    .pbi-kpis { 
+      grid-template-columns: 1fr 1fr !important; 
+      gap: 0.5rem !important; 
+    }
+    .pbi-kpi { 
+      padding: 0.4rem !important; 
+    }
+    .pbi-kpi span { 
+      font-size: 1rem !important; 
+    }
+  }
+
+  @media screen and (max-width: 400px) {
+    .pbi-card { 
+      padding: 0.6rem !important; 
+    }
+    .pbi-card h4 { 
+      font-size: 0.75rem !important; 
+    }
+    #revenueChart, #orderPieChart, #topProductsChart {
+      height: 100px !important;
+    }
+    .pbi-kpis { 
+      grid-template-columns: 1fr !important; 
+    }
+    .pbi-kpi { 
+      padding: 0.3rem !important; 
+    }
+    .pbi-kpi span { 
+      font-size: 0.9rem !important; 
+    }
+    .pbi-kpi small { 
+      font-size: 0.65rem !important; 
+    }
+  }
+
   @media (max-width:768px) {
     .dashboard-cards { grid-template-columns:1fr 1fr; }
     .dashboard-actions { flex-direction:column; }
@@ -654,6 +711,87 @@
     .table-scroll-container { max-height: 250px; }
     .list-scroll-container { max-height: 150px; }
     .kpis-scroll-container { max-height: 200px; }
+  }
+
+  /* ---- PWA & Ultra Small Screen Optimizations ---- */
+  @media (max-width: 480px) {
+    .pbi-card {
+      padding: 0.8rem;
+      margin-bottom: 0.8rem;
+    }
+    .pbi-card h4 {
+      font-size: 0.85rem;
+      margin-bottom: 0.6rem;
+    }
+    .pbi-kpis {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+    .pbi-kpi {
+      padding: 0.4rem;
+    }
+    .pbi-kpi span {
+      font-size: 1.1rem;
+    }
+    .pbi-kpi small {
+      font-size: 0.7rem;
+    }
+    
+    /* Chart containers for mobile */
+    canvas {
+      max-width: 100% !important;
+      height: auto !important;
+      max-height: 200px;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .dashboard-section {
+      padding: 0.5rem;
+      margin-bottom: 0.8rem;
+    }
+    .pbi-card {
+      padding: 0.6rem;
+      border-radius: 6px;
+    }
+    .pbi-card h4 {
+      font-size: 0.8rem;
+      margin-bottom: 0.4rem;
+    }
+    .pbi-grid {
+      gap: 0.6rem;
+    }
+    .section-header h3 {
+      font-size: 0.9rem;
+    }
+    canvas {
+      max-height: 160px !important;
+    }
+    
+    /* Ultra compact KPIs */
+    .pbi-kpi {
+      padding: 0.3rem;
+    }
+    .pbi-kpi span {
+      font-size: 1rem;
+    }
+    .pbi-kpi small {
+      font-size: 0.65rem;
+    }
+  }
+
+  /* PWA standalone mode specific */
+  @media (display-mode: standalone) and (max-width: 400px) {
+    .pbi-card {
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      border-top-width: 2px;
+    }
+    canvas {
+      border-radius: 4px;
+    }
+    .dashboard-section {
+      border-radius: 8px;
+    }
   }
 
 </style>
@@ -724,7 +862,170 @@ function changeOrderStatus(orderNumber, newStatus) {
     .catch(err => alert('Network error: ' + err));
   }
 }
+
+  // ── Compact View ──
+  function toggleCompactView() {
+    var dash = document.querySelector('.dashboard');
+    var btn  = document.getElementById('compactToggleBtn');
+    var icon = document.getElementById('compactIcon');
+    var lbl  = document.getElementById('compactLabel');
+    var on = dash.classList.toggle('compact-view');
+    btn.classList.toggle('active', on);
+    icon.textContent = on ? '⊟' : '⊞';
+    lbl.textContent  = on ? 'Expand' : 'Compact';
+    localStorage.setItem('pwaCompactOwner', on ? '1' : '0');
+    if (on) bindOwnerCollapse();
+  }
+
+  function bindOwnerCollapse() {
+    document.querySelectorAll('.dashboard-section h3, .dashboard-section .section-header').forEach(function(h) {
+      if (!h.dataset.cb) {
+        h.dataset.cb = '1';
+        h.style.cursor = 'pointer';
+        h.addEventListener('click', function() {
+          h.closest('.dashboard-section').classList.toggle('collapsed');
+        });
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    if (localStorage.getItem('pwaCompactOwner') === '1') {
+      var dash = document.querySelector('.dashboard');
+      if (!dash) return;
+      dash.classList.add('compact-view');
+      var btn  = document.getElementById('compactToggleBtn');
+      var icon = document.getElementById('compactIcon');
+      var lbl  = document.getElementById('compactLabel');
+      if (btn)  btn.classList.add('active');
+      if (icon) icon.textContent = '⊟';
+      if (lbl)  lbl.textContent  = 'Expand';
+      bindOwnerCollapse();
+    }
+  });
 </script>
+
+<!-- Compact View Toggle Button -->
+<button id="compactToggleBtn" class="compact-toggle-btn" onclick="toggleCompactView()" title="Toggle compact view for mobile/PWA">
+  <span id="compactIcon">⊞</span>
+  <span id="compactLabel">Compact</span>
+</button>
+
+<style>
+.compact-toggle-btn {
+  position: fixed;
+  bottom: 90px;
+  left: 16px;
+  background: #2b8a3e;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 998;
+  transition: all 0.25s ease;
+}
+.compact-toggle-btn:hover { background: #37b24d; transform: scale(1.05); }
+.compact-toggle-btn.active { background: #495057; }
+
+/* ── Compact mode ── */
+.dashboard.compact-view {
+  padding: 0.4rem !important;
+}
+.dashboard.compact-view .dashboard-header h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.2rem;
+}
+.dashboard.compact-view .role-info {
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+.dashboard.compact-view .dashboard-actions {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  gap: 0.3rem;
+  padding-bottom: 0.3rem;
+}
+.dashboard.compact-view .btn-action {
+  white-space: nowrap;
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+}
+.dashboard.compact-view .dashboard-cards {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.4rem;
+}
+.dashboard.compact-view .card {
+  padding: 0.6rem 0.8rem;
+}
+.dashboard.compact-view .card h3 {
+  font-size: 0.78rem;
+  margin-bottom: 0.25rem;
+}
+.dashboard.compact-view .big-number {
+  font-size: 1.2rem;
+}
+.dashboard.compact-view .section-title {
+  font-size: 0.95rem;
+  margin: 0.5rem 0 0.3rem;
+}
+.dashboard.compact-view .dashboard-section {
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.dashboard.compact-view .dashboard-section > h3,
+.dashboard.compact-view .dashboard-section .section-header {
+  background: #f8f9fa;
+  padding: 0.5rem 0.8rem;
+  margin: 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #dee2e6;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dashboard.compact-view .dashboard-section > h3::after,
+.dashboard.compact-view .dashboard-section .section-header::after {
+  content: '▼';
+  font-size: 0.65rem;
+  color: #666;
+  margin-left: 6px;
+}
+.dashboard.compact-view .dashboard-section.collapsed > h3::after,
+.dashboard.compact-view .dashboard-section.collapsed .section-header::after {
+  content: '▶';
+}
+.dashboard.compact-view .dashboard-section.collapsed > *:not(h3):not(.section-header) {
+  display: none !important;
+}
+.dashboard.compact-view .table-scroll-container,
+.dashboard.compact-view .orders-scroll-container {
+  max-height: 200px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.dashboard.compact-view .dashboard-table {
+  font-size: 0.72rem;
+}
+.dashboard.compact-view .dashboard-table th,
+.dashboard.compact-view .dashboard-table td {
+  padding: 0.25rem 0.3rem;
+  white-space: nowrap;
+}
+.dashboard.compact-view .notifications-scroll-container {
+  max-height: 180px;
+}
+</style>
 
 {% csrf_token %}
 {% endblock %}
